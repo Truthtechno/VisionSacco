@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
   Users,
@@ -9,24 +12,59 @@ import {
   Settings,
   Building2,
   User,
+  Shield,
+  UserCheck,
+  CreditCard,
 } from "lucide-react";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, testId: "nav-dashboard" },
-  { name: "Members", href: "/members", icon: Users, testId: "nav-members" },
-  { name: "Loans", href: "/loans", icon: Banknote, testId: "nav-loans" },
-  { name: "Reports", href: "/reports", icon: BarChart3, testId: "nav-reports" },
-  { name: "Admin", href: "/admin", icon: Settings, testId: "nav-admin" },
-];
+const roleNavigation = {
+  member: [
+    { name: "Member Portal", href: "/member-portal", icon: User, testId: "nav-member-portal" },
+  ],
+  manager: [
+    { name: "Manager Dashboard", href: "/manager", icon: UserCheck, testId: "nav-manager-dashboard" },
+    { name: "Dashboard", href: "/", icon: LayoutDashboard, testId: "nav-dashboard" },
+    { name: "Members", href: "/members", icon: Users, testId: "nav-members" },
+    { name: "Loans", href: "/loans", icon: Banknote, testId: "nav-loans" },
+    { name: "Reports", href: "/reports", icon: BarChart3, testId: "nav-reports" },
+  ],
+  admin: [
+    { name: "Admin Panel", href: "/admin-panel", icon: Shield, testId: "nav-admin-panel" },
+    { name: "Dashboard", href: "/", icon: LayoutDashboard, testId: "nav-dashboard" },
+    { name: "Manager Dashboard", href: "/manager", icon: UserCheck, testId: "nav-manager-dashboard" },
+    { name: "Member Portal", href: "/member-portal", icon: User, testId: "nav-member-portal" },
+    { name: "Members", href: "/members", icon: Users, testId: "nav-members" },
+    { name: "Loans", href: "/loans", icon: Banknote, testId: "nav-loans" },
+    { name: "Reports", href: "/reports", icon: BarChart3, testId: "nav-reports" },
+    { name: "Admin", href: "/admin", icon: Settings, testId: "nav-admin" },
+  ],
+};
 
 export default function Sidebar() {
   const [location] = useLocation();
+  const [currentRole, setCurrentRole] = useState<keyof typeof roleNavigation>("admin");
 
   const isActive = (href: string) => {
     if (href === "/") {
       return location === "/" || location === "/dashboard";
     }
     return location === href;
+  };
+
+  const navigation = roleNavigation[currentRole];
+
+  const getRoleBadge = (role: string) => {
+    const roleColors = {
+      admin: "bg-red-100 text-red-800",
+      manager: "bg-blue-100 text-blue-800",
+      member: "bg-green-100 text-green-800"
+    };
+    
+    return (
+      <Badge className={roleColors[role as keyof typeof roleColors]}>
+        {role.charAt(0).toUpperCase() + role.slice(1)}
+      </Badge>
+    );
   };
 
   return (
@@ -44,19 +82,39 @@ export default function Sidebar() {
         </div>
       </div>
 
+      {/* Role Selector */}
+      <div className="mt-6 px-4" data-testid="role-selector">
+        <div className="mb-2">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Current Role</span>
+        </div>
+        <Select value={currentRole} onValueChange={(value) => setCurrentRole(value as keyof typeof roleNavigation)}>
+          <SelectTrigger className="w-full" data-testid="select-role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="member">Member Access</SelectItem>
+            <SelectItem value="manager">Manager Access</SelectItem>
+            <SelectItem value="admin">Admin Access</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="mt-2 flex justify-center">
+          {getRoleBadge(currentRole)}
+        </div>
+      </div>
+
       {/* Navigation */}
-      <div className="mt-8 flex-1 flex flex-col">
+      <div className="mt-6 flex-1 flex flex-col">
         <nav className="flex-1 px-2 space-y-1" data-testid="navigation-menu">
           {navigation.map((item) => {
             const active = isActive(item.href);
             return (
               <Link key={item.name} href={item.href}>
-                <a
+                <div
                   className={cn(
                     active
                       ? "bg-primary-50 border-r-2 border-primary-600 text-primary-700"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
-                    "group flex items-center px-2 py-2 text-sm font-medium rounded-l-md"
+                    "group flex items-center px-2 py-2 text-sm font-medium rounded-l-md cursor-pointer"
                   )}
                   data-testid={item.testId}
                 >
@@ -69,7 +127,7 @@ export default function Sidebar() {
                     )}
                   />
                   {item.name}
-                </a>
+                </div>
               </Link>
             );
           })}

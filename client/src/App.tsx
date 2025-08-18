@@ -9,6 +9,9 @@ import Members from "@/pages/Members";
 import Loans from "@/pages/Loans";
 import Reports from "@/pages/Reports";
 import Admin from "@/pages/Admin";
+import MemberPortal from "@/pages/MemberPortal";
+import ManagerDashboard from "@/pages/ManagerDashboard";
+import AdminPanel from "@/pages/AdminPanel";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +24,9 @@ function Router() {
         <Route path="/loans" component={Loans} />
         <Route path="/reports" component={Reports} />
         <Route path="/admin" component={Admin} />
+        <Route path="/member-portal" component={MemberPortal} />
+        <Route path="/manager" component={ManagerDashboard} />
+        <Route path="/admin-panel" component={AdminPanel} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

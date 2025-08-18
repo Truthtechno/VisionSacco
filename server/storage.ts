@@ -7,9 +7,12 @@ import {
   type InsertTransaction,
   type Savings,
   type InsertSavings,
+  type Repayment,
+  type InsertRepayment,
   type MemberWithSavings,
   type LoanWithMember,
   type TransactionWithDetails,
+  type RepaymentWithDetails,
   type DashboardStats
 } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -27,8 +30,11 @@ export interface IStorage {
   getLoans(): Promise<LoanWithMember[]>;
   getLoan(id: string): Promise<Loan | undefined>;
   getLoansByMember(memberId: string): Promise<Loan[]>;
+  getLoansByStatus(status: string): Promise<LoanWithMember[]>;
   createLoan(loan: InsertLoan): Promise<Loan>;
   updateLoan(id: string, updates: Partial<InsertLoan>): Promise<Loan>;
+  approveLoan(id: string, approverId: string): Promise<Loan>;
+  rejectLoan(id: string, approverId: string): Promise<Loan>;
 
   // Transactions
   getTransactions(limit?: number): Promise<TransactionWithDetails[]>;
@@ -40,6 +46,11 @@ export interface IStorage {
   getSavings(memberId: string): Promise<Savings | undefined>;
   createOrUpdateSavings(savings: InsertSavings): Promise<Savings>;
 
+  // Repayments
+  getRepayments(): Promise<RepaymentWithDetails[]>;
+  getRepaymentsByLoan(loanId: string): Promise<RepaymentWithDetails[]>;
+  createRepayment(repayment: InsertRepayment): Promise<Repayment>;
+
   // Dashboard
   getDashboardStats(): Promise<DashboardStats>;
 }
@@ -49,12 +60,14 @@ export class MemStorage implements IStorage {
   private loans: Map<string, Loan>;
   private transactions: Map<string, Transaction>;
   private savings: Map<string, Savings>;
+  private repayments: Map<string, Repayment>;
 
   constructor() {
     this.members = new Map();
     this.loans = new Map();
     this.transactions = new Map();
     this.savings = new Map();
+    this.repayments = new Map();
     
     // Initialize with some sample data for demonstration
     this.initializeSampleData();
@@ -76,6 +89,7 @@ export class MemStorage implements IStorage {
         phone: "+256701234567",
         nationalId: "CM123456789",
         address: "Kampala, Uganda",
+        role: "admin",
         dateJoined: new Date("2023-01-15"),
         isActive: true,
       },
@@ -88,6 +102,7 @@ export class MemStorage implements IStorage {
         phone: "+256702345678",
         nationalId: "CM987654321",
         address: "Gulu, Uganda",
+        role: "manager",
         dateJoined: new Date("2023-03-20"),
         isActive: true,
       },
@@ -100,6 +115,7 @@ export class MemStorage implements IStorage {
         phone: "+256703456789",
         nationalId: "CM456789123",
         address: "Jinja, Uganda",
+        role: "member",
         dateJoined: new Date("2024-01-10"),
         isActive: true,
       }
@@ -118,6 +134,7 @@ export class MemStorage implements IStorage {
 
     // Sample loans
     const loan1Id = randomUUID();
+    const loan2Id = randomUUID();
     const sampleLoans = [
       {
         id: loan1Id,
@@ -130,7 +147,26 @@ export class MemStorage implements IStorage {
         dueDate: new Date("2024-12-31"),
         status: "active",
         balance: "1200000",
+        intendedPurpose: "Equipment purchase",
+        approvedBy: member1Id,
+        approvedAt: new Date("2023-12-28"),
         createdAt: new Date("2024-01-01"),
+      },
+      {
+        id: loan2Id,
+        memberId: member3Id,
+        loanNumber: "LN002",
+        principal: "800000",
+        interestRate: "14.00",
+        termMonths: 6,
+        disbursementDate: null,
+        dueDate: null,
+        status: "pending",
+        balance: "800000",
+        intendedPurpose: "Education fees",
+        approvedBy: null,
+        approvedAt: null,
+        createdAt: new Date("2024-02-10"),
       }
     ];
 
@@ -228,9 +264,11 @@ export class MemStorage implements IStorage {
     const loans = Array.from(this.loans.values());
     return loans.map(loan => {
       const member = this.members.get(loan.memberId);
+      const approver = loan.approvedBy ? this.members.get(loan.approvedBy) : null;
       return {
         ...loan,
-        memberName: member ? `${member.firstName} ${member.lastName}` : "Unknown Member"
+        memberName: member ? `${member.firstName} ${member.lastName}` : "Unknown Member",
+        approverName: approver ? `${approver.firstName} ${approver.lastName}` : undefined
       };
     });
   }
@@ -261,6 +299,49 @@ export class MemStorage implements IStorage {
       throw new Error("Loan not found");
     }
     const updated = { ...existing, ...updates };
+    this.loans.set(id, updated);
+    return updated;
+  }
+
+  async getLoansByStatus(status: string): Promise<LoanWithMember[]> {
+    const loans = Array.from(this.loans.values()).filter(loan => loan.status === status);
+    return loans.map(loan => {
+      const member = this.members.get(loan.memberId);
+      const approver = loan.approvedBy ? this.members.get(loan.approvedBy) : null;
+      return {
+        ...loan,
+        memberName: member ? `${member.firstName} ${member.lastName}` : "Unknown Member",
+        approverName: approver ? `${approver.firstName} ${approver.lastName}` : undefined
+      };
+    });
+  }
+
+  async approveLoan(id: string, approverId: string): Promise<Loan> {
+    const existing = this.loans.get(id);
+    if (!existing) {
+      throw new Error("Loan not found");
+    }
+    const updated = { 
+      ...existing, 
+      status: "approved",
+      approvedBy: approverId,
+      approvedAt: new Date()
+    };
+    this.loans.set(id, updated);
+    return updated;
+  }
+
+  async rejectLoan(id: string, approverId: string): Promise<Loan> {
+    const existing = this.loans.get(id);
+    if (!existing) {
+      throw new Error("Loan not found");
+    }
+    const updated = { 
+      ...existing, 
+      status: "rejected",
+      approvedBy: approverId,
+      approvedAt: new Date()
+    };
     this.loans.set(id, updated);
     return updated;
   }
@@ -334,6 +415,74 @@ export class MemStorage implements IStorage {
     return savings;
   }
 
+  async getRepayments(): Promise<RepaymentWithDetails[]> {
+    const repayments = Array.from(this.repayments.values());
+    return repayments.map(repayment => {
+      const loan = this.loans.get(repayment.loanId);
+      const member = loan ? this.members.get(loan.memberId) : null;
+      const processor = this.members.get(repayment.processedBy);
+      return {
+        ...repayment,
+        loanNumber: loan?.loanNumber || "Unknown",
+        memberName: member ? `${member.firstName} ${member.lastName}` : "Unknown Member",
+        processorName: processor ? `${processor.firstName} ${processor.lastName}` : "Unknown Processor"
+      };
+    });
+  }
+
+  async getRepaymentsByLoan(loanId: string): Promise<RepaymentWithDetails[]> {
+    const repayments = Array.from(this.repayments.values()).filter(r => r.loanId === loanId);
+    return repayments.map(repayment => {
+      const loan = this.loans.get(repayment.loanId);
+      const member = loan ? this.members.get(loan.memberId) : null;
+      const processor = this.members.get(repayment.processedBy);
+      return {
+        ...repayment,
+        loanNumber: loan?.loanNumber || "Unknown",
+        memberName: member ? `${member.firstName} ${member.lastName}` : "Unknown Member",
+        processorName: processor ? `${processor.firstName} ${processor.lastName}` : "Unknown Processor"
+      };
+    });
+  }
+
+  async createRepayment(insertRepayment: InsertRepayment): Promise<Repayment> {
+    const id = randomUUID();
+    const repayment: Repayment = {
+      ...insertRepayment,
+      id,
+      paymentDate: new Date(),
+    };
+    this.repayments.set(id, repayment);
+
+    // Update loan balance
+    const loan = this.loans.get(insertRepayment.loanId);
+    if (loan) {
+      const currentBalance = parseFloat(loan.balance);
+      const paymentAmount = parseFloat(insertRepayment.amount);
+      const newBalance = Math.max(0, currentBalance - paymentAmount);
+      
+      await this.updateLoan(insertRepayment.loanId, {
+        balance: newBalance.toString(),
+        status: newBalance === 0 ? "paid" : loan.status
+      });
+
+      // Create a transaction record
+      const member = this.members.get(loan.memberId);
+      if (member) {
+        await this.createTransaction({
+          memberId: member.id,
+          loanId: loan.id,
+          type: "loan_payment",
+          amount: insertRepayment.amount,
+          description: `Loan payment for ${loan.loanNumber} - ${member.firstName} ${member.lastName}`,
+          processedBy: insertRepayment.processedBy
+        });
+      }
+    }
+
+    return repayment;
+  }
+
   async getDashboardStats(): Promise<DashboardStats> {
     const members = Array.from(this.members.values());
     const loans = Array.from(this.loans.values());
@@ -357,6 +506,12 @@ export class MemStorage implements IStorage {
       .filter(t => t.type === "loan_payment")
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
+    const pendingLoans = loans.filter(l => l.status === "pending").length;
+    const totalLoansPrincipal = loans.reduce((sum, l) => sum + parseFloat(l.principal), 0);
+    const totalPaidAmount = totalLoansPrincipal - activeLoansTotal;
+    const defaultRate = totalLoansPrincipal > 0 ? 
+      ((loans.filter(l => l.status === "defaulted").length / loans.length) * 100).toFixed(1) : "0.0";
+
     return {
       totalMembers,
       totalSavings: `UGX ${(totalSavings / 1000000).toFixed(1)}M`,
@@ -366,6 +521,8 @@ export class MemStorage implements IStorage {
       savingsGrowth: "+8.2%",
       loanCount: loans.filter(l => l.status === "active").length,
       revenueGrowth: "+15.3%",
+      pendingLoans,
+      defaultRate: `${defaultRate}%`,
     };
   }
 }

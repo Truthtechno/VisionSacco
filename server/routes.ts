@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMemberSchema, insertLoanSchema, insertTransactionSchema } from "@shared/schema";
+import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -85,7 +85,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Loans routes
   app.get("/api/loans", async (req, res) => {
     try {
-      const loans = await storage.getLoans();
+      const status = req.query.status as string;
+      const loans = status ? 
+        await storage.getLoansByStatus(status) : 
+        await storage.getLoans();
       res.json(loans);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch loans" });
@@ -117,23 +120,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertLoanSchema.parse(req.body);
       const loan = await storage.createLoan(validatedData);
-      
-      // Create disbursement transaction
-      await storage.createTransaction({
-        memberId: loan.memberId,
-        loanId: loan.id,
-        type: "loan_disbursement",
-        amount: loan.principal,
-        description: `Loan Disbursement - ${loan.loanNumber}`,
-        processedBy: "System",
-      });
-
       res.status(201).json(loan);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid input", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create loan" });
+    }
+  });
+
+  app.post("/api/loans/:id/approve", async (req, res) => {
+    try {
+      const { approverId } = req.body;
+      if (!approverId) {
+        return res.status(400).json({ message: "Approver ID is required" });
+      }
+      
+      const loan = await storage.approveLoan(req.params.id, approverId);
+      
+      // Create disbursement transaction if approved
+      await storage.createTransaction({
+        memberId: loan.memberId,
+        loanId: loan.id,
+        type: "loan_disbursement",
+        amount: loan.principal,
+        description: `Loan Disbursement - ${loan.loanNumber}`,
+        processedBy: approverId,
+      });
+
+      res.json(loan);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Loan not found") {
+        return res.status(404).json({ message: "Loan not found" });
+      }
+      res.status(500).json({ message: "Failed to approve loan" });
+    }
+  });
+
+  app.post("/api/loans/:id/reject", async (req, res) => {
+    try {
+      const { approverId } = req.body;
+      if (!approverId) {
+        return res.status(400).json({ message: "Approver ID is required" });
+      }
+      
+      const loan = await storage.rejectLoan(req.params.id, approverId);
+      res.json(loan);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Loan not found") {
+        return res.status(404).json({ message: "Loan not found" });
+      }
+      res.status(500).json({ message: "Failed to reject loan" });
     }
   });
 
@@ -180,6 +217,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(savings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch savings" });
+    }
+  });
+
+  // Repayments routes
+  app.get("/api/repayments", async (req, res) => {
+    try {
+      const repayments = await storage.getRepayments();
+      res.json(repayments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch repayments" });
+    }
+  });
+
+  app.get("/api/loans/:id/repayments", async (req, res) => {
+    try {
+      const repayments = await storage.getRepaymentsByLoan(req.params.id);
+      res.json(repayments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch loan repayments" });
+    }
+  });
+
+  app.post("/api/repayments", async (req, res) => {
+    try {
+      const validatedData = insertRepaymentSchema.parse(req.body);
+      const repayment = await storage.createRepayment(validatedData);
+      res.status(201).json(repayment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to process repayment" });
     }
   });
 
