@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Settings, Users, Shield, Database, AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Settings, Users, Shield, Database, AlertTriangle, CheckCircle, Info, TestTube } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { type DashboardStats, type MemberWithSavings, type TransactionWithDetails } from "@shared/schema";
 
 export default function Admin() {
@@ -20,6 +22,8 @@ export default function Admin() {
     notificationsEnabled: true,
   });
 
+  const { toast } = useToast();
+
   const { data: stats } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -30,6 +34,33 @@ export default function Admin() {
 
   const { data: transactions = [] } = useQuery<TransactionWithDetails[]>({
     queryKey: ["/api/transactions"],
+  });
+
+  // Load demo data mutation
+  const loadDemoDataMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/load-demo-data");
+    },
+    onSuccess: () => {
+      // Invalidate all queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/repayments"] });
+      
+      toast({
+        title: "Demo Data Loaded",
+        description: "Sample data has been successfully loaded into the system.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to load demo data. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const systemAlerts = [
@@ -92,6 +123,9 @@ export default function Admin() {
       [setting]: value,
     }));
   };
+
+  const isDevelopment = import.meta.env.MODE === 'development' || import.meta.env.DEV;
+  const currentRole = "admin"; // In a real app, this would come from user context
 
   return (
     <div className="py-6" data-testid="admin-page">
@@ -420,6 +454,18 @@ export default function Admin() {
                     <Button variant="outline" className="w-full" data-testid="button-export-data">
                       Export Data
                     </Button>
+                    {isDevelopment && currentRole === "admin" && (
+                      <Button 
+                        variant="outline" 
+                        className="w-full bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" 
+                        onClick={() => loadDemoDataMutation.mutate()}
+                        disabled={loadDemoDataMutation.isPending}
+                        data-testid="button-load-demo-data"
+                      >
+                        <TestTube className="mr-2 h-4 w-4" />
+                        {loadDemoDataMutation.isPending ? "Loading..." : "Load Demo Data"}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -252,6 +252,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Load demo data (development only)
+  app.post("/api/admin/load-demo-data", async (req, res) => {
+    try {
+      // Only allow in development environment
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ message: "Demo data loading not allowed in production" });
+      }
+
+      await storage.loadDemoData();
+      res.json({ message: "Demo data loaded successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to load demo data" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

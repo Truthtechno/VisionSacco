@@ -53,6 +53,9 @@ export interface IStorage {
 
   // Dashboard
   getDashboardStats(): Promise<DashboardStats>;
+
+  // Demo data
+  loadDemoData(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -233,9 +236,17 @@ export class MemStorage implements IStorage {
   async createMember(insertMember: InsertMember): Promise<Member> {
     const id = randomUUID();
     const member: Member = {
-      ...insertMember,
       id,
+      memberNumber: insertMember.memberNumber,
+      firstName: insertMember.firstName,
+      lastName: insertMember.lastName,
+      email: insertMember.email ?? null,
+      phone: insertMember.phone,
+      nationalId: insertMember.nationalId ?? null,
+      address: insertMember.address ?? null,
+      role: insertMember.role ?? "member",
       dateJoined: new Date(),
+      isActive: insertMember.isActive ?? true,
     };
     this.members.set(id, member);
     
@@ -284,9 +295,19 @@ export class MemStorage implements IStorage {
   async createLoan(insertLoan: InsertLoan): Promise<Loan> {
     const id = randomUUID();
     const loan: Loan = {
-      ...insertLoan,
       id,
+      memberId: insertLoan.memberId,
+      loanNumber: insertLoan.loanNumber,
+      principal: insertLoan.principal,
+      interestRate: insertLoan.interestRate,
+      termMonths: insertLoan.termMonths,
+      disbursementDate: insertLoan.disbursementDate ?? null,
+      dueDate: insertLoan.dueDate ?? null,
+      status: insertLoan.status ?? "pending",
       balance: insertLoan.principal, // Initial balance equals principal
+      intendedPurpose: insertLoan.intendedPurpose ?? null,
+      approvedBy: insertLoan.approvedBy ?? null,
+      approvedAt: insertLoan.approvedAt ?? null,
       createdAt: new Date(),
     };
     this.loans.set(id, loan);
@@ -374,9 +395,14 @@ export class MemStorage implements IStorage {
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
     const id = randomUUID();
     const transaction: Transaction = {
-      ...insertTransaction,
       id,
+      type: insertTransaction.type,
+      memberId: insertTransaction.memberId ?? null,
+      loanId: insertTransaction.loanId ?? null,
+      amount: insertTransaction.amount,
+      description: insertTransaction.description,
       transactionDate: new Date(),
+      processedBy: insertTransaction.processedBy,
     };
     this.transactions.set(id, transaction);
 
@@ -408,7 +434,8 @@ export class MemStorage implements IStorage {
     const existing = this.savings.get(insertSavings.memberId);
     const savings: Savings = {
       id: existing?.id || randomUUID(),
-      ...insertSavings,
+      memberId: insertSavings.memberId,
+      balance: insertSavings.balance ?? "0",
       lastUpdated: new Date(),
     };
     this.savings.set(insertSavings.memberId, savings);
@@ -448,9 +475,13 @@ export class MemStorage implements IStorage {
   async createRepayment(insertRepayment: InsertRepayment): Promise<Repayment> {
     const id = randomUUID();
     const repayment: Repayment = {
-      ...insertRepayment,
       id,
+      loanId: insertRepayment.loanId,
+      amount: insertRepayment.amount,
+      paymentMethod: insertRepayment.paymentMethod,
+      processedBy: insertRepayment.processedBy,
       paymentDate: new Date(),
+      notes: insertRepayment.notes ?? null,
     };
     this.repayments.set(id, repayment);
 
@@ -462,6 +493,7 @@ export class MemStorage implements IStorage {
       const newBalance = Math.max(0, currentBalance - paymentAmount);
       
       await this.updateLoan(insertRepayment.loanId, {
+        principal: loan.principal,
         balance: newBalance.toString(),
         status: newBalance === 0 ? "paid" : loan.status
       });
@@ -524,6 +556,169 @@ export class MemStorage implements IStorage {
       pendingLoans,
       defaultRate: `${defaultRate}%`,
     };
+  }
+
+  async loadDemoData(): Promise<void> {
+    // Clear existing data
+    this.members.clear();
+    this.loans.clear();
+    this.transactions.clear();
+    this.savings.clear();
+    this.repayments.clear();
+
+    // Create more comprehensive demo data
+    const memberIds: string[] = [];
+    const loanIds: string[] = [];
+
+    // Create 15 demo members
+    const memberNames = [
+      { firstName: "Mary", lastName: "Nakato", email: "mary.nakato@email.com" },
+      { firstName: "Peter", lastName: "Okello", email: "peter.okello@email.com" },
+      { firstName: "Sarah", lastName: "Akello", email: "sarah.akello@email.com" },
+      { firstName: "John", lastName: "Mukasa", email: "john.mukasa@email.com" },
+      { firstName: "Grace", lastName: "Nabirye", email: "grace.nabirye@email.com" },
+      { firstName: "David", lastName: "Ssekandi", email: "david.ssekandi@email.com" },
+      { firstName: "Ruth", lastName: "Namubiru", email: "ruth.namubiru@email.com" },
+      { firstName: "Moses", lastName: "Lubega", email: "moses.lubega@email.com" },
+      { firstName: "Joyce", lastName: "Tumwebaze", email: "joyce.tumwebaze@email.com" },
+      { firstName: "Samuel", lastName: "Kigozi", email: "samuel.kigozi@email.com" },
+      { firstName: "Rebecca", lastName: "Nakaweesi", email: "rebecca.nakaweesi@email.com" },
+      { firstName: "James", lastName: "Watako", email: "james.watako@email.com" },
+      { firstName: "Esther", lastName: "Nansubuga", email: "esther.nansubuga@email.com" },
+      { firstName: "Daniel", lastName: "Ssemanda", email: "daniel.ssemanda@email.com" },
+      { firstName: "Agnes", lastName: "Kiconco", email: "agnes.kiconco@email.com" }
+    ];
+
+    for (let i = 0; i < memberNames.length; i++) {
+      const memberId = randomUUID();
+      memberIds.push(memberId);
+      
+      const member: Member = {
+        id: memberId,
+        memberNumber: `VFA${String(i + 1).padStart(3, '0')}`,
+        firstName: memberNames[i].firstName,
+        lastName: memberNames[i].lastName,
+        email: memberNames[i].email,
+        phone: `+25670${String(Math.floor(Math.random() * 9000000) + 1000000)}`,
+        nationalId: `CM${String(Math.floor(Math.random() * 900000000) + 100000000)}`,
+        address: ["Kampala", "Entebbe", "Jinja", "Gulu", "Mbarara", "Fort Portal"][Math.floor(Math.random() * 6)] + ", Uganda",
+        role: i === 0 ? "admin" : i === 1 ? "manager" : "member",
+        dateJoined: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+        isActive: true,
+      };
+      
+      this.members.set(memberId, member);
+
+      // Create savings for each member
+      const savingsAmount = Math.floor(Math.random() * 5000000) + 500000; // 500K to 5.5M
+      const savings: Savings = {
+        id: randomUUID(),
+        memberId,
+        balance: String(savingsAmount),
+        lastUpdated: new Date(),
+      };
+      this.savings.set(memberId, savings);
+    }
+
+    // Create demo loans
+    const loanStatuses = ["active", "pending", "paid", "overdue", "approved"];
+    const purposes = ["Equipment purchase", "Education fees", "Medical expenses", "Business expansion", "Agriculture", "Housing"];
+    
+    for (let i = 0; i < 12; i++) {
+      const loanId = randomUUID();
+      loanIds.push(loanId);
+      
+      const principal = Math.floor(Math.random() * 10000000) + 500000; // 500K to 10.5M
+      const balance = Math.floor(principal * (0.3 + Math.random() * 0.7)); // 30-100% of principal
+      const status = loanStatuses[Math.floor(Math.random() * loanStatuses.length)];
+      const termMonths = [6, 12, 18, 24, 36][Math.floor(Math.random() * 5)];
+      
+      const loan: Loan = {
+        id: loanId,
+        memberId: memberIds[Math.floor(Math.random() * memberIds.length)],
+        loanNumber: `LN${String(i + 1).padStart(3, '0')}`,
+        principal: String(principal),
+        interestRate: String(12 + Math.random() * 8), // 12-20%
+        termMonths,
+        disbursementDate: status !== "pending" ? new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000) : null,
+        dueDate: status !== "pending" ? new Date(Date.now() + termMonths * 30 * 24 * 60 * 60 * 1000) : null,
+        status,
+        balance: String(balance),
+        intendedPurpose: purposes[Math.floor(Math.random() * purposes.length)],
+        approvedBy: status !== "pending" ? memberIds[0] : null, // Admin approves
+        approvedAt: status !== "pending" ? new Date(Date.now() - Math.random() * 200 * 24 * 60 * 60 * 1000) : null,
+        createdAt: new Date(Date.now() - Math.random() * 200 * 24 * 60 * 60 * 1000),
+      };
+      
+      this.loans.set(loanId, loan);
+    }
+
+    // Create demo transactions (last 6 months)
+    const transactionTypes = ["deposit", "withdrawal", "loan_disbursement", "loan_payment"];
+    
+    for (let i = 0; i < 50; i++) {
+      const type = transactionTypes[Math.floor(Math.random() * transactionTypes.length)];
+      const memberId = memberIds[Math.floor(Math.random() * memberIds.length)];
+      const loanId = (type === "loan_disbursement" || type === "loan_payment") ? 
+        loanIds[Math.floor(Math.random() * loanIds.length)] : null;
+      
+      let amount: number;
+      switch (type) {
+        case "deposit":
+          amount = Math.floor(Math.random() * 2000000) + 100000; // 100K - 2.1M
+          break;
+        case "withdrawal":
+          amount = Math.floor(Math.random() * 1000000) + 50000; // 50K - 1.05M
+          break;
+        case "loan_disbursement":
+          amount = Math.floor(Math.random() * 8000000) + 500000; // 500K - 8.5M
+          break;
+        case "loan_payment":
+          amount = Math.floor(Math.random() * 500000) + 50000; // 50K - 550K
+          break;
+        default:
+          amount = 100000;
+      }
+      
+      const member = this.members.get(memberId);
+      const transaction: Transaction = {
+        id: randomUUID(),
+        memberId,
+        loanId,
+        type,
+        amount: String(amount),
+        description: `${type.replace('_', ' ')} - ${member?.firstName} ${member?.lastName}`,
+        transactionDate: new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000), // Last 6 months
+        processedBy: "Demo System",
+      };
+      
+      this.transactions.set(transaction.id, transaction);
+    }
+
+    // Create demo repayments
+    const activeLoanIds = Array.from(this.loans.values())
+      .filter(l => l.status === "active" || l.status === "paid")
+      .map(l => l.id);
+      
+    for (let i = 0; i < 20; i++) {
+      if (activeLoanIds.length === 0) break;
+      
+      const loanId = activeLoanIds[Math.floor(Math.random() * activeLoanIds.length)];
+      const loan = this.loans.get(loanId);
+      if (!loan) continue;
+      
+      const repayment: Repayment = {
+        id: randomUUID(),
+        loanId,
+        amount: String(Math.floor(Math.random() * 400000) + 100000), // 100K - 500K
+        paymentMethod: ["cash", "bank_transfer", "mobile_money"][Math.floor(Math.random() * 3)],
+        processedBy: memberIds[0], // Admin processes
+        paymentDate: new Date(Date.now() - Math.random() * 120 * 24 * 60 * 60 * 1000), // Last 4 months
+        notes: "Regular monthly payment",
+      };
+      
+      this.repayments.set(repayment.id, repayment);
+    }
   }
 }
 
