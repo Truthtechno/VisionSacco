@@ -69,17 +69,17 @@ export default function Loans() {
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate" data-testid="loans-title">
+            <h2 className="text-xl font-bold leading-7 text-gray-900 sm:text-2xl lg:text-3xl sm:truncate" data-testid="loans-title">
               Loans Management
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm sm:text-base text-gray-500">
               Track and manage member loans and repayments
             </p>
           </div>
           <div className="mt-4 md:mt-0">
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button data-testid="button-add-loan">
+                <Button className="mobile-button touch-friendly" data-testid="button-add-loan">
                   <Plus className="mr-2 h-4 w-4" />
                   New Loan
                 </Button>
@@ -101,7 +101,7 @@ export default function Loans() {
             <Input
               type="text"
               placeholder="Search loans..."
-              className="pl-10"
+              className="pl-10 mobile-button"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               data-testid="input-search-loans"
@@ -192,7 +192,7 @@ export default function Loans() {
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">Due Date:</span>
                       <span className="text-sm font-medium" data-testid={`loan-${loan.id}-due-date`}>
-                        {new Date(loan.dueDate).toLocaleDateString()}
+                        {loan.dueDate ? new Date(loan.dueDate).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
                   </div>
@@ -215,11 +215,11 @@ export default function Loans() {
                   </div>
 
                   <div className="flex space-x-2 pt-2">
-                    <Button size="sm" variant="outline" className="flex-1" data-testid={`button-view-loan-${loan.id}`}>
+                    <Button size="sm" variant="outline" className="flex-1 touch-friendly" data-testid={`button-view-loan-${loan.id}`}>
                       View Details
                     </Button>
                     {loan.status === 'active' && (
-                      <Button size="sm" className="flex-1" data-testid={`button-payment-loan-${loan.id}`}>
+                      <Button size="sm" className="flex-1 touch-friendly" data-testid={`button-payment-loan-${loan.id}`}>
                         Record Payment
                       </Button>
                     )}
@@ -237,7 +237,7 @@ export default function Loans() {
             </p>
             {!searchTerm && (
               <Button
-                className="mt-4"
+                className="mt-4 mobile-button touch-friendly"
                 onClick={() => setDialogOpen(true)}
                 data-testid="button-add-first-loan"
               >

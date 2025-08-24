@@ -86,17 +86,17 @@ export default function Members() {
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate" data-testid="members-title">
+            <h2 className="text-xl font-bold leading-7 text-gray-900 sm:text-2xl lg:text-3xl sm:truncate" data-testid="members-title">
               Members Management
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm sm:text-base text-gray-500">
               Manage SACCO members and their information
             </p>
           </div>
           <div className="mt-4 md:mt-0">
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={() => setEditingMember(null)} data-testid="button-add-member">
+                <Button onClick={() => setEditingMember(null)} className="mobile-button touch-friendly" data-testid="button-add-member">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Member
                 </Button>
@@ -123,7 +123,7 @@ export default function Members() {
             <Input
               type="text"
               placeholder="Search members..."
-              className="pl-10"
+              className="pl-10 mobile-button"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               data-testid="input-search-members"
@@ -145,6 +145,7 @@ export default function Members() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEdit(member)}
+                      className="touch-friendly p-2"
                       data-testid={`button-edit-member-${member.id}`}
                     >
                       <Edit className="h-4 w-4" />
@@ -153,7 +154,7 @@ export default function Members() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(member.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 touch-friendly p-2"
                       data-testid={`button-delete-member-${member.id}`}
                     >
                       <Trash2 className="h-4 w-4" />

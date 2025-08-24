@@ -536,7 +536,7 @@ export default function AdminPanel() {
                       updates: {
                         firstName: selectedUser.firstName,
                         lastName: selectedUser.lastName,
-                        email: selectedUser.email,
+                        email: selectedUser.email || '',
                         phone: selectedUser.phone,
                         role: selectedUser.role,
                         memberNumber: selectedUser.memberNumber

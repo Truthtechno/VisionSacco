@@ -55,9 +55,9 @@ export default function Sidebar() {
 
   const getRoleBadge = (role: string) => {
     const roleColors = {
-      admin: "bg-red-100 text-red-800",
-      manager: "bg-blue-100 text-blue-800",
-      member: "bg-green-100 text-green-800"
+      admin: "bg-accent-50 text-accent-700 border border-accent-200",
+      manager: "bg-primary-50 text-primary-700 border border-primary-200",
+      member: "bg-green-50 text-green-700 border border-green-200"
     };
     
     return (
@@ -68,16 +68,16 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto bg-white border-r border-gray-200">
+    <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto bg-white border-r border-gray-200 shadow-sm">
       {/* Logo */}
       <div className="flex items-center flex-shrink-0 px-4" data-testid="logo-section">
         <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
+          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
+            <Building2 className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">Vision SACCO</h1>
-            <p className="text-xs text-gray-500">Financial Management</p>
+            <h1 className="text-lg font-bold text-gray-900">Vision for Africa</h1>
+            <p className="text-xs text-gray-500 font-medium">SACCO</p>
           </div>
         </div>
       </div>
@@ -114,7 +114,7 @@ export default function Sidebar() {
                     active
                       ? "bg-primary-50 border-r-2 border-primary-600 text-primary-700"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
-                    "group flex items-center px-2 py-2 text-sm font-medium rounded-l-md cursor-pointer"
+                    "group flex items-center px-3 py-3 text-sm font-medium rounded-l-md cursor-pointer transition-all duration-200 touch-friendly"
                   )}
                   data-testid={item.testId}
                 >
@@ -123,7 +123,7 @@ export default function Sidebar() {
                       active
                         ? "text-primary-600"
                         : "text-gray-400 group-hover:text-gray-500",
-                      "mr-3 flex-shrink-0 h-5 w-5"
+                      "mr-3 flex-shrink-0 h-5 w-5 transition-colors duration-200"
                     )}
                   />
                   {item.name}
@@ -135,15 +135,15 @@ export default function Sidebar() {
       </div>
 
       {/* User Profile */}
-      <div className="flex-shrink-0 flex border-t border-gray-200 p-4" data-testid="user-profile">
-        <div className="flex items-center">
+      <div className="flex-shrink-0 flex border-t border-gray-200 p-4 bg-gray-50" data-testid="user-profile">
+        <div className="flex items-center w-full">
           <div className="flex-shrink-0">
-            <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
-              <User className="h-4 w-4 text-gray-600" />
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm">
+              <User className="h-5 w-5 text-white" />
             </div>
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-gray-700">John Doe</p>
+          <div className="ml-3 flex-1">
+            <p className="text-sm font-semibold text-gray-700">John Doe</p>
             <p className="text-xs text-gray-500">Administrator</p>
           </div>
         </div>

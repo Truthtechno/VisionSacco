@@ -79,19 +79,19 @@ export default function Dashboard() {
         {/* Page header */}
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate" data-testid="dashboard-title">
+            <h2 className="text-xl font-bold leading-7 text-gray-900 sm:text-2xl lg:text-3xl sm:truncate" data-testid="dashboard-title">
               Dashboard Overview
             </h2>
-            <p className="mt-1 text-sm text-gray-500" data-testid="dashboard-subtitle">
+            <p className="mt-1 text-sm sm:text-base text-gray-500" data-testid="dashboard-subtitle">
               Welcome back! Here's what's happening with your SACCO today.
             </p>
           </div>
-          <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
-            <Button variant="outline" data-testid="button-export-report">
+          <div className="mt-4 flex flex-col sm:flex-row md:mt-0 md:ml-4 space-y-2 sm:space-y-0 sm:space-x-3">
+            <Button variant="outline" className="mobile-button touch-friendly" data-testid="button-export-report">
               <Download className="mr-2 h-4 w-4" />
               Export Report
             </Button>
-            <Button data-testid="button-new-transaction">
+            <Button className="mobile-button touch-friendly" data-testid="button-new-transaction">
               <Plus className="mr-2 h-4 w-4" />
               New Transaction
             </Button>
@@ -153,7 +153,7 @@ export default function Dashboard() {
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Transactions</h3>
-                <Button variant="link" size="sm" data-testid="link-view-all-transactions">
+                <Button variant="link" size="sm" className="touch-friendly" data-testid="link-view-all-transactions">
                   View all
                 </Button>
               </div>
