@@ -1,0 +1,130 @@
+{
+  "members": [
+    {
+      "id": "bb00727e-738d-498b-b789-a34720653024",
+      "memberNumber": "VFA001",
+      "firstName": "Mary",
+      "lastName": "Nakato",
+      "email": "mary.nakato@email.com",
+      "phone": "+256701234567",
+      "nationalId": "CM123456789",
+      "address": "Kampala, Uganda",
+      "role": "admin",
+      "dateJoined": "2023-01-15T00:00:00.000Z",
+      "isActive": true
+    },
+    {
+      "id": "72c8f3ee-5a8f-4dff-8a7a-21668c0f5bfc",
+      "memberNumber": "VFA002",
+      "firstName": "Peter",
+      "lastName": "Okello",
+      "email": "peter.okello@email.com",
+      "phone": "+256702345678",
+      "nationalId": "CM987654321",
+      "address": "Gulu, Uganda",
+      "role": "manager",
+      "dateJoined": "2023-03-20T00:00:00.000Z",
+      "isActive": true
+    },
+    {
+      "id": "30d89ed4-509c-4d55-9b1a-032b43aedde3",
+      "memberNumber": "VFA003",
+      "firstName": "Sarah",
+      "lastName": "Akello",
+      "email": "sarah.akello@email.com",
+      "phone": "+256703456789",
+      "nationalId": "CM456789123",
+      "address": "Jinja, Uganda",
+      "role": "member",
+      "dateJoined": "2024-01-10T00:00:00.000Z",
+      "isActive": true
+    }
+  ],
+  "loans": [
+    {
+      "id": "131c5770-1478-437f-b517-552ace010bc3",
+      "memberId": "72c8f3ee-5a8f-4dff-8a7a-21668c0f5bfc",
+      "loanNumber": "LN001",
+      "principal": "1500000",
+      "interestRate": "15.00",
+      "termMonths": 12,
+      "disbursementDate": "2024-01-01T00:00:00.000Z",
+      "dueDate": "2024-12-31T00:00:00.000Z",
+      "status": "active",
+      "balance": "1200000",
+      "intendedPurpose": "Equipment purchase",
+      "approvedBy": "bb00727e-738d-498b-b789-a34720653024",
+      "approvedAt": "2023-12-28T00:00:00.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "9a058e6d-3b85-4cbf-91e5-b4d343f04eb8",
+      "memberId": "30d89ed4-509c-4d55-9b1a-032b43aedde3",
+      "loanNumber": "LN002",
+      "principal": "800000",
+      "interestRate": "14.00",
+      "termMonths": 6,
+      "disbursementDate": null,
+      "dueDate": null,
+      "status": "pending",
+      "balance": "800000",
+      "intendedPurpose": "Education fees",
+      "approvedBy": null,
+      "approvedAt": null,
+      "createdAt": "2024-02-10T00:00:00.000Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "3bc9c183-86ef-4603-b974-1ea2a14a948a",
+      "memberId": "bb00727e-738d-498b-b789-a34720653024",
+      "loanId": null,
+      "type": "deposit",
+      "amount": "250000",
+      "description": "Savings Deposit - Mary Nakato",
+      "transactionDate": "2025-08-25T10:36:40.634Z",
+      "processedBy": "John Doe"
+    },
+    {
+      "id": "53662a1c-c9cf-4ba1-9deb-d91c2703b7e5",
+      "memberId": "72c8f3ee-5a8f-4dff-8a7a-21668c0f5bfc",
+      "loanId": "131c5770-1478-437f-b517-552ace010bc3",
+      "type": "loan_disbursement",
+      "amount": "1500000",
+      "description": "Loan Disbursement - Peter Okello",
+      "transactionDate": "2025-08-25T07:36:40.634Z",
+      "processedBy": "Mary Nakato"
+    },
+    {
+      "id": "748e6702-310d-4e4a-856e-7093faaa5937",
+      "memberId": "30d89ed4-509c-4d55-9b1a-032b43aedde3",
+      "loanId": null,
+      "type": "deposit",
+      "amount": "100000",
+      "description": "Savings Deposit - Sarah Akello",
+      "transactionDate": "2025-08-24T12:36:40.634Z",
+      "processedBy": "Mary Nakato"
+    }
+  ],
+  "savings": [
+    {
+      "id": "b60bbbd1-9329-45bf-ae40-39a21a0e32e2",
+      "memberId": "bb00727e-738d-498b-b789-a34720653024",
+      "balance": "2500000",
+      "lastUpdated": "2025-08-25T12:36:40.634Z"
+    },
+    {
+      "id": "5eadf1f3-d590-471b-ab0a-11c43a350b2d",
+      "memberId": "72c8f3ee-5a8f-4dff-8a7a-21668c0f5bfc",
+      "balance": "1800000",
+      "lastUpdated": "2025-08-25T12:36:40.634Z"
+    },
+    {
+      "id": "19ba32ca-047b-4810-a158-2b7e548555b8",
+      "memberId": "30d89ed4-509c-4d55-9b1a-032b43aedde3",
+      "balance": "500000",
+      "lastUpdated": "2025-08-25T12:36:40.634Z"
+    }
+  ],
+  "repayments": []
+}

@@ -16,67 +16,78 @@ import {
   type DashboardStats
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
+import type { IStorage } from './storage';
 
-export interface IStorage {
-  // Members
-  getMembers(): Promise<MemberWithSavings[]>;
-  getMember(id: string): Promise<Member | undefined>;
-  getMemberByNumber(memberNumber: string): Promise<Member | undefined>;
-  createMember(member: InsertMember): Promise<Member>;
-  updateMember(id: string, updates: Partial<InsertMember>): Promise<Member>;
-  deleteMember(id: string): Promise<void>;
-
-  // Loans
-  getLoans(): Promise<LoanWithMember[]>;
-  getLoan(id: string): Promise<Loan | undefined>;
-  getLoansByMember(memberId: string): Promise<Loan[]>;
-  getLoansByStatus(status: string): Promise<LoanWithMember[]>;
-  createLoan(loan: InsertLoan): Promise<Loan>;
-  updateLoan(id: string, updates: Partial<InsertLoan>): Promise<Loan>;
-  approveLoan(id: string, approverId: string): Promise<Loan>;
-  rejectLoan(id: string, approverId: string): Promise<Loan>;
-
-  // Transactions
-  getTransactions(limit?: number): Promise<TransactionWithDetails[]>;
-  getTransaction(id: string): Promise<Transaction | undefined>;
-  getTransactionsByMember(memberId: string): Promise<Transaction[]>;
-  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-
-  // Savings
-  getSavings(memberId: string): Promise<Savings | undefined>;
-  createOrUpdateSavings(savings: InsertSavings): Promise<Savings>;
-
-  // Repayments
-  getRepayments(): Promise<RepaymentWithDetails[]>;
-  getRepaymentsByLoan(loanId: string): Promise<RepaymentWithDetails[]>;
-  createRepayment(repayment: InsertRepayment): Promise<Repayment>;
-
-  // Dashboard
-  getDashboardStats(): Promise<DashboardStats>;
-
-  // Demo data
-  loadDemoData(): Promise<void>;
+interface DatabaseData {
+  members: Member[];
+  loans: Loan[];
+  transactions: Transaction[];
+  savings: Savings[];
+  repayments: Repayment[];
 }
 
-export class MemStorage implements IStorage {
-  private members: Map<string, Member>;
-  private loans: Map<string, Loan>;
-  private transactions: Map<string, Transaction>;
-  private savings: Map<string, Savings>;
-  private repayments: Map<string, Repayment>;
+const defaultData: DatabaseData = {
+  members: [],
+  loans: [],
+  transactions: [],
+  savings: [],
+  repayments: []
+};
+
+export class LowDBStorage implements IStorage {
+  private db: Low<DatabaseData>;
+  private initialized = false;
 
   constructor() {
-    this.members = new Map();
-    this.loans = new Map();
-    this.transactions = new Map();
-    this.savings = new Map();
-    this.repayments = new Map();
-    
-    // Initialize with some sample data for demonstration
-    this.initializeSampleData();
+    const adapter = new JSONFile<DatabaseData>('db.json');
+    this.db = new Low(adapter, defaultData);
   }
 
-  private initializeSampleData() {
+  private async ensureInitialized() {
+    if (this.initialized) return;
+    
+    await this.db.read();
+    
+    // Convert date strings back to Date objects
+    this.db.data.members = this.db.data.members.map(member => ({
+      ...member,
+      dateJoined: new Date(member.dateJoined)
+    }));
+    
+    this.db.data.loans = this.db.data.loans.map(loan => ({
+      ...loan,
+      disbursementDate: loan.disbursementDate ? new Date(loan.disbursementDate) : null,
+      dueDate: loan.dueDate ? new Date(loan.dueDate) : null,
+      approvedAt: loan.approvedAt ? new Date(loan.approvedAt) : null,
+      createdAt: new Date(loan.createdAt)
+    }));
+    
+    this.db.data.transactions = this.db.data.transactions.map(transaction => ({
+      ...transaction,
+      transactionDate: new Date(transaction.transactionDate)
+    }));
+    
+    this.db.data.savings = this.db.data.savings.map(saving => ({
+      ...saving,
+      lastUpdated: new Date(saving.lastUpdated)
+    }));
+    
+    this.db.data.repayments = this.db.data.repayments.map(repayment => ({
+      ...repayment,
+      paymentDate: new Date(repayment.paymentDate)
+    }));
+    
+    // Initialize with sample data if database is empty
+    if (this.db.data.members.length === 0) {
+      await this.initializeSampleData();
+    }
+    
+    this.initialized = true;
+  }
+
+  private async initializeSampleData() {
     // Sample members
     const member1Id = randomUUID();
     const member2Id = randomUUID();
@@ -124,7 +135,7 @@ export class MemStorage implements IStorage {
       }
     ];
 
-    sampleMembers.forEach(member => this.members.set(member.id, member));
+    this.db.data.members = sampleMembers;
 
     // Sample savings
     const sampleSavings = [
@@ -133,7 +144,7 @@ export class MemStorage implements IStorage {
       { id: randomUUID(), memberId: member3Id, balance: "500000", lastUpdated: new Date() },
     ];
 
-    sampleSavings.forEach(saving => this.savings.set(saving.memberId, saving));
+    this.db.data.savings = sampleSavings;
 
     // Sample loans
     const loan1Id = randomUUID();
@@ -173,7 +184,7 @@ export class MemStorage implements IStorage {
       }
     ];
 
-    sampleLoans.forEach(loan => this.loans.set(loan.id, loan));
+    this.db.data.loans = sampleLoans;
 
     // Sample transactions
     const sampleTransactions = [
@@ -195,27 +206,29 @@ export class MemStorage implements IStorage {
         amount: "1500000",
         description: "Loan Disbursement - Peter Okello",
         transactionDate: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-        processedBy: "John Doe",
+        processedBy: "Mary Nakato",
       },
       {
         id: randomUUID(),
         memberId: member3Id,
         loanId: null,
         type: "deposit",
-        amount: "500000",
-        description: "New Member Registration - Sarah Akello",
+        amount: "100000",
+        description: "Savings Deposit - Sarah Akello",
         transactionDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-        processedBy: "John Doe",
+        processedBy: "Mary Nakato",
       }
     ];
 
-    sampleTransactions.forEach(transaction => this.transactions.set(transaction.id, transaction));
+    this.db.data.transactions = sampleTransactions;
+
+    await this.db.write();
   }
 
   async getMembers(): Promise<MemberWithSavings[]> {
-    const members = Array.from(this.members.values());
-    return members.map(member => {
-      const savings = this.savings.get(member.id);
+    await this.ensureInitialized();
+    return this.db.data.members.map(member => {
+      const savings = this.db.data.savings.find(s => s.memberId === member.id);
       return {
         ...member,
         savingsBalance: savings?.balance || "0"
@@ -224,16 +237,17 @@ export class MemStorage implements IStorage {
   }
 
   async getMember(id: string): Promise<Member | undefined> {
-    return this.members.get(id);
+    await this.ensureInitialized();
+    return this.db.data.members.find(m => m.id === id);
   }
 
   async getMemberByNumber(memberNumber: string): Promise<Member | undefined> {
-    return Array.from(this.members.values()).find(
-      (member) => member.memberNumber === memberNumber
-    );
+    await this.ensureInitialized();
+    return this.db.data.members.find(m => m.memberNumber === memberNumber);
   }
 
   async createMember(insertMember: InsertMember): Promise<Member> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const member: Member = {
       id,
@@ -248,34 +262,40 @@ export class MemStorage implements IStorage {
       dateJoined: new Date(),
       isActive: insertMember.isActive ?? true,
     };
-    this.members.set(id, member);
+    
+    this.db.data.members.push(member);
     
     // Initialize savings account
     await this.createOrUpdateSavings({ memberId: id, balance: "0" });
     
+    await this.db.write();
     return member;
   }
 
   async updateMember(id: string, updates: Partial<InsertMember>): Promise<Member> {
-    const existing = this.members.get(id);
-    if (!existing) {
+    await this.ensureInitialized();
+    const memberIndex = this.db.data.members.findIndex(m => m.id === id);
+    if (memberIndex === -1) {
       throw new Error("Member not found");
     }
-    const updated = { ...existing, ...updates };
-    this.members.set(id, updated);
-    return updated;
+    
+    this.db.data.members[memberIndex] = { ...this.db.data.members[memberIndex], ...updates };
+    await this.db.write();
+    return this.db.data.members[memberIndex];
   }
 
   async deleteMember(id: string): Promise<void> {
-    this.members.delete(id);
-    this.savings.delete(id);
+    await this.ensureInitialized();
+    this.db.data.members = this.db.data.members.filter(m => m.id !== id);
+    this.db.data.savings = this.db.data.savings.filter(s => s.memberId !== id);
+    await this.db.write();
   }
 
   async getLoans(): Promise<LoanWithMember[]> {
-    const loans = Array.from(this.loans.values());
-    return loans.map(loan => {
-      const member = this.members.get(loan.memberId);
-      const approver = loan.approvedBy ? this.members.get(loan.approvedBy) : null;
+    await this.ensureInitialized();
+    return this.db.data.loans.map(loan => {
+      const member = this.db.data.members.find(m => m.id === loan.memberId);
+      const approver = loan.approvedBy ? this.db.data.members.find(m => m.id === loan.approvedBy) : null;
       return {
         ...loan,
         memberName: member ? `${member.firstName} ${member.lastName}` : "Unknown Member",
@@ -285,14 +305,17 @@ export class MemStorage implements IStorage {
   }
 
   async getLoan(id: string): Promise<Loan | undefined> {
-    return this.loans.get(id);
+    await this.ensureInitialized();
+    return this.db.data.loans.find(l => l.id === id);
   }
 
   async getLoansByMember(memberId: string): Promise<Loan[]> {
-    return Array.from(this.loans.values()).filter(loan => loan.memberId === memberId);
+    await this.ensureInitialized();
+    return this.db.data.loans.filter(loan => loan.memberId === memberId);
   }
 
   async createLoan(insertLoan: InsertLoan): Promise<Loan> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const loan: Loan = {
       id,
@@ -310,25 +333,30 @@ export class MemStorage implements IStorage {
       approvedAt: insertLoan.approvedAt ?? null,
       createdAt: new Date(),
     };
-    this.loans.set(id, loan);
+    
+    this.db.data.loans.push(loan);
+    await this.db.write();
     return loan;
   }
 
   async updateLoan(id: string, updates: Partial<InsertLoan>): Promise<Loan> {
-    const existing = this.loans.get(id);
-    if (!existing) {
+    await this.ensureInitialized();
+    const loanIndex = this.db.data.loans.findIndex(l => l.id === id);
+    if (loanIndex === -1) {
       throw new Error("Loan not found");
     }
-    const updated = { ...existing, ...updates };
-    this.loans.set(id, updated);
-    return updated;
+    
+    this.db.data.loans[loanIndex] = { ...this.db.data.loans[loanIndex], ...updates };
+    await this.db.write();
+    return this.db.data.loans[loanIndex];
   }
 
   async getLoansByStatus(status: string): Promise<LoanWithMember[]> {
-    const loans = Array.from(this.loans.values()).filter(loan => loan.status === status);
-    return loans.map(loan => {
-      const member = this.members.get(loan.memberId);
-      const approver = loan.approvedBy ? this.members.get(loan.approvedBy) : null;
+    await this.ensureInitialized();
+    const filteredLoans = this.db.data.loans.filter(loan => loan.status === status);
+    return filteredLoans.map(loan => {
+      const member = this.db.data.members.find(m => m.id === loan.memberId);
+      const approver = loan.approvedBy ? this.db.data.members.find(m => m.id === loan.approvedBy) : null;
       return {
         ...loan,
         memberName: member ? `${member.firstName} ${member.lastName}` : "Unknown Member",
@@ -338,43 +366,50 @@ export class MemStorage implements IStorage {
   }
 
   async approveLoan(id: string, approverId: string): Promise<Loan> {
-    const existing = this.loans.get(id);
-    if (!existing) {
+    await this.ensureInitialized();
+    const loanIndex = this.db.data.loans.findIndex(l => l.id === id);
+    if (loanIndex === -1) {
       throw new Error("Loan not found");
     }
-    const updated = { 
-      ...existing, 
+    
+    this.db.data.loans[loanIndex] = { 
+      ...this.db.data.loans[loanIndex],
       status: "approved",
       approvedBy: approverId,
       approvedAt: new Date()
     };
-    this.loans.set(id, updated);
-    return updated;
+    
+    await this.db.write();
+    return this.db.data.loans[loanIndex];
   }
 
   async rejectLoan(id: string, approverId: string): Promise<Loan> {
-    const existing = this.loans.get(id);
-    if (!existing) {
+    await this.ensureInitialized();
+    const loanIndex = this.db.data.loans.findIndex(l => l.id === id);
+    if (loanIndex === -1) {
       throw new Error("Loan not found");
     }
-    const updated = { 
-      ...existing, 
+    
+    this.db.data.loans[loanIndex] = { 
+      ...this.db.data.loans[loanIndex],
       status: "rejected",
       approvedBy: approverId,
       approvedAt: new Date()
     };
-    this.loans.set(id, updated);
-    return updated;
+    
+    await this.db.write();
+    return this.db.data.loans[loanIndex];
   }
 
   async getTransactions(limit?: number): Promise<TransactionWithDetails[]> {
-    const transactions = Array.from(this.transactions.values())
+    await this.ensureInitialized();
+    const transactions = this.db.data.transactions
       .sort((a, b) => b.transactionDate.getTime() - a.transactionDate.getTime());
     
     const limitedTransactions = limit ? transactions.slice(0, limit) : transactions;
     
     return limitedTransactions.map(transaction => {
-      const member = transaction.memberId ? this.members.get(transaction.memberId) : null;
+      const member = transaction.memberId ? this.db.data.members.find(m => m.id === transaction.memberId) : null;
       return {
         ...transaction,
         memberName: member ? `${member.firstName} ${member.lastName}` : undefined
@@ -383,16 +418,17 @@ export class MemStorage implements IStorage {
   }
 
   async getTransaction(id: string): Promise<Transaction | undefined> {
-    return this.transactions.get(id);
+    await this.ensureInitialized();
+    return this.db.data.transactions.find(t => t.id === id);
   }
 
   async getTransactionsByMember(memberId: string): Promise<Transaction[]> {
-    return Array.from(this.transactions.values()).filter(
-      transaction => transaction.memberId === memberId
-    );
+    await this.ensureInitialized();
+    return this.db.data.transactions.filter(t => t.memberId === memberId);
   }
 
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const transaction: Transaction = {
       id,
@@ -404,13 +440,14 @@ export class MemStorage implements IStorage {
       transactionDate: new Date(),
       processedBy: insertTransaction.processedBy,
     };
-    this.transactions.set(id, transaction);
+    
+    this.db.data.transactions.push(transaction);
 
     // Update savings balance if it's a deposit/withdrawal
     if (insertTransaction.memberId && (insertTransaction.type === "deposit" || insertTransaction.type === "withdrawal")) {
-      const currentSavings = this.savings.get(insertTransaction.memberId);
-      if (currentSavings) {
-        const currentBalance = parseFloat(currentSavings.balance);
+      const savingsIndex = this.db.data.savings.findIndex(s => s.memberId === insertTransaction.memberId);
+      if (savingsIndex !== -1) {
+        const currentBalance = parseFloat(this.db.data.savings[savingsIndex].balance);
         const transactionAmount = parseFloat(insertTransaction.amount);
         const newBalance = insertTransaction.type === "deposit" 
           ? currentBalance + transactionAmount 
@@ -423,31 +460,42 @@ export class MemStorage implements IStorage {
       }
     }
 
+    await this.db.write();
     return transaction;
   }
 
   async getSavings(memberId: string): Promise<Savings | undefined> {
-    return this.savings.get(memberId);
+    await this.ensureInitialized();
+    return this.db.data.savings.find(s => s.memberId === memberId);
   }
 
   async createOrUpdateSavings(insertSavings: InsertSavings): Promise<Savings> {
-    const existing = this.savings.get(insertSavings.memberId);
+    await this.ensureInitialized();
+    const existingIndex = this.db.data.savings.findIndex(s => s.memberId === insertSavings.memberId);
+    
     const savings: Savings = {
-      id: existing?.id || randomUUID(),
+      id: existingIndex !== -1 ? this.db.data.savings[existingIndex].id : randomUUID(),
       memberId: insertSavings.memberId,
       balance: insertSavings.balance ?? "0",
       lastUpdated: new Date(),
     };
-    this.savings.set(insertSavings.memberId, savings);
+    
+    if (existingIndex !== -1) {
+      this.db.data.savings[existingIndex] = savings;
+    } else {
+      this.db.data.savings.push(savings);
+    }
+    
+    await this.db.write();
     return savings;
   }
 
   async getRepayments(): Promise<RepaymentWithDetails[]> {
-    const repayments = Array.from(this.repayments.values());
-    return repayments.map(repayment => {
-      const loan = this.loans.get(repayment.loanId);
-      const member = loan ? this.members.get(loan.memberId) : null;
-      const processor = this.members.get(repayment.processedBy);
+    await this.ensureInitialized();
+    return this.db.data.repayments.map(repayment => {
+      const loan = this.db.data.loans.find(l => l.id === repayment.loanId);
+      const member = loan ? this.db.data.members.find(m => m.id === loan.memberId) : null;
+      const processor = this.db.data.members.find(m => m.id === repayment.processedBy);
       return {
         ...repayment,
         loanNumber: loan?.loanNumber || "Unknown",
@@ -458,11 +506,12 @@ export class MemStorage implements IStorage {
   }
 
   async getRepaymentsByLoan(loanId: string): Promise<RepaymentWithDetails[]> {
-    const repayments = Array.from(this.repayments.values()).filter(r => r.loanId === loanId);
+    await this.ensureInitialized();
+    const repayments = this.db.data.repayments.filter(r => r.loanId === loanId);
     return repayments.map(repayment => {
-      const loan = this.loans.get(repayment.loanId);
-      const member = loan ? this.members.get(loan.memberId) : null;
-      const processor = this.members.get(repayment.processedBy);
+      const loan = this.db.data.loans.find(l => l.id === repayment.loanId);
+      const member = loan ? this.db.data.members.find(m => m.id === loan.memberId) : null;
+      const processor = this.db.data.members.find(m => m.id === repayment.processedBy);
       return {
         ...repayment,
         loanNumber: loan?.loanNumber || "Unknown",
@@ -473,6 +522,7 @@ export class MemStorage implements IStorage {
   }
 
   async createRepayment(insertRepayment: InsertRepayment): Promise<Repayment> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const repayment: Repayment = {
       id,
@@ -483,25 +533,26 @@ export class MemStorage implements IStorage {
       paymentDate: new Date(),
       notes: insertRepayment.notes ?? null,
     };
-    this.repayments.set(id, repayment);
+    
+    this.db.data.repayments.push(repayment);
 
     // Update loan balance
-    const loan = this.loans.get(insertRepayment.loanId);
-    if (loan) {
+    const loanIndex = this.db.data.loans.findIndex(l => l.id === insertRepayment.loanId);
+    if (loanIndex !== -1) {
+      const loan = this.db.data.loans[loanIndex];
       const currentBalance = parseFloat(loan.balance);
       const paymentAmount = parseFloat(insertRepayment.amount);
       const newBalance = Math.max(0, currentBalance - paymentAmount);
       
       // Update loan balance directly
-      const updated = { 
-        ...loan, 
+      this.db.data.loans[loanIndex] = {
+        ...loan,
         balance: newBalance.toString(),
         status: newBalance === 0 ? "paid" : loan.status
       };
-      this.loans.set(insertRepayment.loanId, updated);
 
       // Create a transaction record
-      const member = this.members.get(loan.memberId);
+      const member = this.db.data.members.find(m => m.id === loan.memberId);
       if (member) {
         await this.createTransaction({
           memberId: member.id,
@@ -514,14 +565,16 @@ export class MemStorage implements IStorage {
       }
     }
 
+    await this.db.write();
     return repayment;
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
-    const members = Array.from(this.members.values());
-    const loans = Array.from(this.loans.values());
-    const savings = Array.from(this.savings.values());
-    const transactions = Array.from(this.transactions.values());
+    await this.ensureInitialized();
+    const members = this.db.data.members;
+    const loans = this.db.data.loans;
+    const savings = this.db.data.savings;
+    const transactions = this.db.data.transactions;
 
     const totalMembers = members.filter(m => m.isActive).length;
     const totalSavings = savings.reduce((sum, s) => sum + parseFloat(s.balance), 0);
@@ -562,13 +615,15 @@ export class MemStorage implements IStorage {
 
   async loadDemoData(): Promise<void> {
     // Clear existing data
-    this.members.clear();
-    this.loans.clear();
-    this.transactions.clear();
-    this.savings.clear();
-    this.repayments.clear();
+    this.db.data = {
+      members: [],
+      loans: [],
+      transactions: [],
+      savings: [],
+      repayments: []
+    };
 
-    // Create more comprehensive demo data
+    // Create comprehensive demo data
     const memberIds: string[] = [];
     const loanIds: string[] = [];
 
@@ -609,7 +664,7 @@ export class MemStorage implements IStorage {
         isActive: true,
       };
       
-      this.members.set(memberId, member);
+      this.db.data.members.push(member);
 
       // Create savings for each member
       const savingsAmount = Math.floor(Math.random() * 5000000) + 500000; // 500K to 5.5M
@@ -619,10 +674,10 @@ export class MemStorage implements IStorage {
         balance: String(savingsAmount),
         lastUpdated: new Date(),
       };
-      this.savings.set(memberId, savings);
+      this.db.data.savings.push(savings);
     }
 
-    // Create demo loans
+    // Create demo loans with realistic data
     const loanStatuses = ["active", "pending", "paid", "overdue", "approved"];
     const purposes = ["Equipment purchase", "Education fees", "Medical expenses", "Business expansion", "Agriculture", "Housing"];
     
@@ -652,7 +707,7 @@ export class MemStorage implements IStorage {
         createdAt: new Date(Date.now() - Math.random() * 200 * 24 * 60 * 60 * 1000),
       };
       
-      this.loans.set(loanId, loan);
+      this.db.data.loans.push(loan);
     }
 
     // Create demo transactions (last 6 months)
@@ -682,7 +737,7 @@ export class MemStorage implements IStorage {
           amount = 100000;
       }
       
-      const member = this.members.get(memberId);
+      const member = this.db.data.members.find(m => m.id === memberId);
       const transaction: Transaction = {
         id: randomUUID(),
         memberId,
@@ -694,24 +749,20 @@ export class MemStorage implements IStorage {
         processedBy: "Demo System",
       };
       
-      this.transactions.set(transaction.id, transaction);
+      this.db.data.transactions.push(transaction);
     }
 
     // Create demo repayments
-    const activeLoanIds = Array.from(this.loans.values())
-      .filter(l => l.status === "active" || l.status === "paid")
-      .map(l => l.id);
+    const activeLoans = this.db.data.loans.filter(l => l.status === "active" || l.status === "paid");
       
     for (let i = 0; i < 20; i++) {
-      if (activeLoanIds.length === 0) break;
+      if (activeLoans.length === 0) break;
       
-      const loanId = activeLoanIds[Math.floor(Math.random() * activeLoanIds.length)];
-      const loan = this.loans.get(loanId);
-      if (!loan) continue;
+      const loan = activeLoans[Math.floor(Math.random() * activeLoans.length)];
       
       const repayment: Repayment = {
         id: randomUUID(),
-        loanId,
+        loanId: loan.id,
         amount: String(Math.floor(Math.random() * 400000) + 100000), // 100K - 500K
         paymentMethod: ["cash", "bank_transfer", "mobile_money"][Math.floor(Math.random() * 3)],
         processedBy: memberIds[0], // Admin processes
@@ -719,11 +770,9 @@ export class MemStorage implements IStorage {
         notes: "Regular monthly payment",
       };
       
-      this.repayments.set(repayment.id, repayment);
+      this.db.data.repayments.push(repayment);
     }
+
+    await this.db.write();
   }
 }
-
-import { LowDBStorage } from './lowdb-storage';
-
-export const storage = new LowDBStorage();
