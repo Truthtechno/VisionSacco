@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
 import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import AppLayout from "@/components/layout/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import Members from "@/pages/Members";
@@ -13,45 +12,12 @@ import Admin from "@/pages/Admin";
 import MemberPortal from "@/pages/MemberPortal";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import AdminPanel from "@/pages/AdminPanel";
-import LoginPage from "@/pages/Login";
+import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
+import { queryClient } from "./lib/queryClient";
 
-interface AuthContextType {
-  user: any;
-  setUser: (user: any) => void;
-  logout: () => void;
-}
-
-const AuthContext = React.createContext<AuthContextType | null>(null);
-
-function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Check for existing session on app load
-  const { data: authData } = useQuery({
-    queryKey: ["/api/auth/me"],
-    retry: false,
-    staleTime: Infinity,
-  });
-
-  useEffect(() => {
-    if (authData?.success) {
-      setUser(authData.data);
-    }
-    setIsLoading(false);
-  }, [authData]);
-
-  const logout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      setUser(null);
-      queryClient.clear();
-    }
-  };
+function Router() {
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -64,31 +30,24 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return (
-    <AuthContext.Provider value={{ user, setUser, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export const useAuth = () => {
-  const context = React.useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return context;
-};
-
-function Router() {
-  const { user } = useAuth();
-
   if (!user) {
-    return <LoginPage onSuccess={(userData) => window.location.reload()} />;
+    return (
+      <Switch>
+        <Route path="/auth" component={AuthPage} />
+        <Route>
+          <AuthPage />
+        </Route>
+      </Switch>
+    );
   }
 
   return (
     <AppLayout>
       <Switch>
+        <Route path="/auth" component={() => {
+          window.location.href = "/";
+          return null;
+        }} />
         <Route path="/" component={Dashboard} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/members" component={Members} />
