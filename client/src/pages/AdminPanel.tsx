@@ -11,11 +11,17 @@ import { Settings, Users, CreditCard, Shield, Plus, Edit2, Trash2, FileText } fr
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { MemberWithSavings, DashboardStats, RepaymentWithDetails } from "@shared/schema";
+import type { MemberWithSavings, DashboardStats, RepaymentWithDetails, UnfreezeRequestWithDetails } from "@shared/schema";
+import { UpdateMemberStatusModal } from "@/components/modals/UpdateMemberStatusModal";
+import { ProcessUnfreezeRequestModal } from "@/components/modals/ProcessUnfreezeRequestModal";
 
 export default function AdminPanel() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [selectedUser, setSelectedUser] = useState<MemberWithSavings | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedMemberForStatus, setSelectedMemberForStatus] = useState<MemberWithSavings | null>(null);
+  const [showUnfreezeModal, setShowUnfreezeModal] = useState(false);
+  const [selectedUnfreezeRequest, setSelectedUnfreezeRequest] = useState<UnfreezeRequestWithDetails | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -45,6 +51,14 @@ export default function AdminPanel() {
   const { data: repayments = [] } = useQuery<RepaymentWithDetails[]>({
     queryKey: ['/api/repayments'],
   });
+
+  // Fetch unfreeze requests
+  const { data: unfreezeRequests = [] } = useQuery<UnfreezeRequestWithDetails[]>({
+    queryKey: ['/api/unfreeze-requests'],
+  });
+
+  // Get pending unfreeze requests count
+  const pendingUnfreezeCount = unfreezeRequests.filter(req => req.status === 'pending').length;
 
   // Create user mutation
   const createUserMutation = useMutation({
@@ -225,6 +239,15 @@ export default function AdminPanel() {
       <Tabs defaultValue="users" className="space-y-4">
         <TabsList data-testid="tabs-list">
           <TabsTrigger value="users" data-testid="tab-users">User Management</TabsTrigger>
+          <TabsTrigger value="status" data-testid="tab-status">Member Status</TabsTrigger>
+          <TabsTrigger value="unfreeze" data-testid="tab-unfreeze">
+            Unfreeze Requests
+            {pendingUnfreezeCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingUnfreezeCount}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="repayments" data-testid="tab-repayments">Repayments</TabsTrigger>
           <TabsTrigger value="system" data-testid="tab-system">System Settings</TabsTrigger>
         </TabsList>
@@ -258,6 +281,17 @@ export default function AdminPanel() {
                                 Inactive
                               </Badge>
                             )}
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                member.status === 'active' ? "bg-green-100 text-green-800" :
+                                member.status === 'inactive' ? "bg-yellow-100 text-yellow-800" :
+                                member.status === 'frozen' ? "bg-red-100 text-red-800" :
+                                "bg-gray-100 text-gray-800"
+                              }
+                            >
+                              {member.status || 'active'}
+                            </Badge>
                           </div>
                           <p className="text-sm text-gray-600" data-testid={`text-user-member-number-${member.id}`}>
                             Member #: {member.memberNumber}
@@ -278,6 +312,18 @@ export default function AdminPanel() {
                           >
                             <Edit2 className="h-4 w-4 mr-1" />
                             Edit
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              setSelectedMemberForStatus(member);
+                              setShowStatusModal(true);
+                            }}
+                            data-testid={`button-manage-status-${member.id}`}
+                          >
+                            <Shield className="h-4 w-4 mr-1" />
+                            Status
                           </Button>
                           <Button 
                             variant="outline" 
@@ -314,6 +360,134 @@ export default function AdminPanel() {
                           <span className="text-gray-500">National ID:</span>
                           <p className="font-medium">{member.nationalId || "Not provided"}</p>
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="status" className="space-y-4">
+          <Card data-testid="card-member-status">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Member Status Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {members.map((member) => (
+                  <div key={member.id} className="border rounded-lg p-4" data-testid={`status-item-${member.id}`}>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h3 className="font-semibold">{member.firstName} {member.lastName}</h3>
+                          <p className="text-sm text-gray-600">Member #: {member.memberNumber}</p>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            member.status === 'active' ? "bg-green-100 text-green-800" :
+                            member.status === 'inactive' ? "bg-yellow-100 text-yellow-800" :
+                            member.status === 'frozen' ? "bg-red-100 text-red-800" :
+                            "bg-gray-100 text-gray-800"
+                          }
+                        >
+                          {member.status || 'active'}
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedMemberForStatus(member);
+                          setShowStatusModal(true);
+                        }}
+                        data-testid={`button-change-status-${member.id}`}
+                      >
+                        Change Status
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="unfreeze" className="space-y-4">
+          <Card data-testid="card-unfreeze-requests">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Unfreeze Requests
+                {pendingUnfreezeCount > 0 && (
+                  <Badge variant="destructive">{pendingUnfreezeCount} pending</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {unfreezeRequests.length === 0 ? (
+                <div className="text-center py-8 text-gray-500" data-testid="no-unfreeze-requests">
+                  <Shield className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  No unfreeze requests
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {unfreezeRequests.map((request) => (
+                    <div key={request.id} className="border rounded-lg p-4" data-testid={`unfreeze-request-${request.id}`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold">{request.memberName}</h3>
+                            <span className="text-sm text-gray-600">({request.memberNumber})</span>
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                request.status === 'pending' ? "bg-yellow-100 text-yellow-800" :
+                                request.status === 'approved' ? "bg-green-100 text-green-800" :
+                                request.status === 'denied' ? "bg-red-100 text-red-800" :
+                                "bg-gray-100 text-gray-800"
+                              }
+                            >
+                              {request.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Requested: {formatDate(request.requestedAt)}
+                          </p>
+                          {request.reason && (
+                            <p className="text-sm bg-gray-50 p-2 rounded mb-2">
+                              <strong>Reason:</strong> {request.reason}
+                            </p>
+                          )}
+                          {request.adminNotes && (
+                            <p className="text-sm bg-blue-50 p-2 rounded mb-2">
+                              <strong>Admin Notes:</strong> {request.adminNotes}
+                            </p>
+                          )}
+                          {request.processedAt && (
+                            <p className="text-xs text-gray-500">
+                              Processed: {formatDate(request.processedAt)} by {request.processorName}
+                            </p>
+                          )}
+                        </div>
+                        {request.status === 'pending' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedUnfreezeRequest(request);
+                              setShowUnfreezeModal(true);
+                            }}
+                            data-testid={`button-process-request-${request.id}`}
+                          >
+                            Process
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -558,6 +732,26 @@ export default function AdminPanel() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Member Status Modal */}
+      <UpdateMemberStatusModal
+        member={selectedMemberForStatus}
+        isOpen={showStatusModal}
+        onClose={() => {
+          setShowStatusModal(false);
+          setSelectedMemberForStatus(null);
+        }}
+      />
+
+      {/* Process Unfreeze Request Modal */}
+      <ProcessUnfreezeRequestModal
+        request={selectedUnfreezeRequest}
+        isOpen={showUnfreezeModal}
+        onClose={() => {
+          setShowUnfreezeModal(false);
+          setSelectedUnfreezeRequest(null);
+        }}
+      />
     </div>
   );
 }

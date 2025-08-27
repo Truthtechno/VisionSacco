@@ -73,6 +73,18 @@ export const repayments = pgTable("repayments", {
   notes: text("notes"),
 });
 
+// Unfreeze requests table for deactivated members
+export const unfreezeRequests = pgTable("unfreeze_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  memberId: varchar("member_id").references(() => members.id).notNull(),
+  reason: text("reason"),
+  status: text("status").notNull().default("pending"), // pending, approved, denied
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  processedBy: varchar("processed_by").references(() => members.id),
+  processedAt: timestamp("processed_at"),
+  adminNotes: text("admin_notes"),
+});
+
 // Authentication schemas
 export const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -121,6 +133,12 @@ export const insertRepaymentSchema = createInsertSchema(repayments).omit({
   paymentDate: true,
 });
 
+export const insertUnfreezeRequestSchema = createInsertSchema(unfreezeRequests).omit({
+  id: true,
+  requestedAt: true,
+  processedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertMember = z.infer<typeof insertMemberSchema>;
@@ -131,6 +149,8 @@ export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertSavings = z.infer<typeof insertSavingsSchema>;
 export type Savings = typeof savings.$inferSelect;
+export type UnfreezeRequest = typeof unfreezeRequests.$inferSelect;
+export type InsertUnfreezeRequest = z.infer<typeof insertUnfreezeRequestSchema>;
 export type InsertRepayment = z.infer<typeof insertRepaymentSchema>;
 export type Repayment = typeof repayments.$inferSelect;
 
@@ -139,6 +159,7 @@ export type MemberWithSavings = Member & { savingsBalance: string };
 export type LoanWithMember = Loan & { memberName: string; approverName?: string };
 export type TransactionWithDetails = Transaction & { memberName?: string };
 export type RepaymentWithDetails = Repayment & { loanNumber: string; memberName: string; processorName: string };
+export type UnfreezeRequestWithDetails = UnfreezeRequest & { memberName: string; memberNumber: string; processorName?: string };
 
 export type DashboardStats = {
   totalMembers: number;

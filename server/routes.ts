@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema, insertUserSchema } from "@shared/schema";
+import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema, insertUserSchema, insertUnfreezeRequestSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
@@ -246,8 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/members/:id/status", async (req, res) => {
     try {
       const { status } = req.body;
-      if (!status || !["active", "part-time", "deactivated"].includes(status)) {
-        return res.status(400).json({ success: false, error: "Invalid status" });
+      if (!status || !["active", "inactive", "frozen"].includes(status)) {
+        return res.status(400).json({ success: false, error: "Invalid status. Must be active, inactive, or frozen" });
       }
       
       const member = await storage.updateMemberStatus(req.params.id, status);
@@ -451,6 +451,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Demo data loaded successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to load demo data" });
+    }
+  });
+
+  // Unfreeze requests routes
+  app.get("/api/unfreeze-requests", async (req, res) => {
+    try {
+      const requests = await storage.getUnfreezeRequests();
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch unfreeze requests" });
+    }
+  });
+
+  app.get("/api/unfreeze-requests/pending", async (req, res) => {
+    try {
+      const requests = await storage.getPendingUnfreezeRequests();
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending unfreeze requests" });
+    }
+  });
+
+  app.post("/api/unfreeze-requests", async (req, res) => {
+    try {
+      const validatedData = insertUnfreezeRequestSchema.parse(req.body);
+      const request = await storage.createUnfreezeRequest(validatedData);
+      res.status(201).json(request);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create unfreeze request" });
+    }
+  });
+
+  app.patch("/api/unfreeze-requests/:id/process", async (req, res) => {
+    try {
+      const { status, processedBy, adminNotes } = req.body;
+      
+      if (!status || !["approved", "denied"].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'approved' or 'denied'" });
+      }
+      
+      if (!processedBy) {
+        return res.status(400).json({ message: "ProcessedBy is required" });
+      }
+      
+      const request = await storage.processUnfreezeRequest(req.params.id, processedBy, status, adminNotes);
+      res.json(request);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Unfreeze request not found") {
+        return res.status(404).json({ message: "Unfreeze request not found" });
+      }
+      res.status(500).json({ message: "Failed to process unfreeze request" });
     }
   });
 

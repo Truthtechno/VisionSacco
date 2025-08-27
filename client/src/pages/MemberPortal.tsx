@@ -13,12 +13,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Loan, Transaction, Savings } from "@shared/schema";
+import { RequestUnfreezeModal } from "@/components/modals/RequestUnfreezeModal";
 
 export default function MemberPortal() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showLoanRequest, setShowLoanRequest] = useState(false);
+  const [showUnfreezeRequest, setShowUnfreezeRequest] = useState(false);
 
   // Get the current authenticated user's member record
   const { data: allMembers = [], isLoading: membersLoading } = useQuery<any[]>({
@@ -141,6 +143,9 @@ export default function MemberPortal() {
     );
   };
 
+  // Check if member account is frozen
+  const isFrozen = memberRecord?.status === 'frozen';
+
   // Loading states
   if (membersLoading || !memberRecord) {
     return (
@@ -155,16 +160,55 @@ export default function MemberPortal() {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Frozen Account Notice */}
+      {isFrozen && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4" data-testid="frozen-account-notice">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-red-800 font-semibold">Account Frozen</h3>
+              <p className="text-red-700 text-sm mt-1">
+                Your account has been temporarily frozen. Some services may be limited.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowUnfreezeRequest(true)}
+              className="border-red-300 text-red-700 hover:bg-red-50"
+              data-testid="button-request-unfreeze"
+            >
+              Request Reactivation
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900" data-testid="text-portal-title">
             Welcome, {memberRecord.firstName}
           </h1>
-          <p className="text-gray-600">Member #{memberRecord.memberNumber}</p>
+          <p className="text-gray-600">
+            Member #{memberRecord.memberNumber}
+            {memberRecord?.status && (
+              <Badge 
+                variant="outline" 
+                className={`ml-2 ${
+                  memberRecord.status === 'active' ? "bg-green-100 text-green-800" :
+                  memberRecord.status === 'inactive' ? "bg-yellow-100 text-yellow-800" :
+                  memberRecord.status === 'frozen' ? "bg-red-100 text-red-800" :
+                  "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {memberRecord.status}
+              </Badge>
+            )}
+          </p>
         </div>
         <Button 
           onClick={() => setShowLoanRequest(true)} 
           className="bg-teal-600 hover:bg-teal-700 w-full sm:w-auto"
+          disabled={isFrozen}
           data-testid="button-request-loan"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -411,6 +455,13 @@ export default function MemberPortal() {
         onClose={() => setShowLoanRequest(false)}
         onSubmit={(data) => createLoanMutation.mutate(data)}
         isLoading={createLoanMutation.isPending}
+      />
+
+      {/* Request Unfreeze Modal */}
+      <RequestUnfreezeModal
+        member={memberRecord}
+        isOpen={showUnfreezeRequest}
+        onClose={() => setShowUnfreezeRequest(false)}
       />
     </div>
   );

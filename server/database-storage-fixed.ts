@@ -6,6 +6,7 @@ import {
   transactions,
   savings,
   repayments,
+  unfreezeRequests,
   type User,
   type InsertUser,
   type Member, 
@@ -18,10 +19,13 @@ import {
   type InsertSavings,
   type Repayment,
   type InsertRepayment,
+  type UnfreezeRequest,
+  type InsertUnfreezeRequest,
   type MemberWithSavings,
   type LoanWithMember,
   type TransactionWithDetails,
   type RepaymentWithDetails,
+  type UnfreezeRequestWithDetails,
   type DashboardStats
 } from "@shared/schema";
 import { eq, sql, desc, count, sum } from "drizzle-orm";
@@ -423,6 +427,108 @@ export class DatabaseStorage implements IStorage {
       .values(repayment)
       .returning();
     return newRepayment;
+  }
+
+  // Unfreeze Requests
+  async getUnfreezeRequests(): Promise<UnfreezeRequestWithDetails[]> {
+    const allRequests = await db
+      .select()
+      .from(unfreezeRequests)
+      .orderBy(desc(unfreezeRequests.requestedAt));
+
+    const result: UnfreezeRequestWithDetails[] = [];
+    for (const request of allRequests) {
+      // Get member information
+      const member = await this.getMember(request.memberId);
+      const memberName = member ? `${member.firstName} ${member.lastName}` : "Unknown";
+      const memberNumber = member?.memberNumber || "Unknown";
+
+      // Get processor information if processed
+      let processorName = undefined;
+      if (request.processedBy) {
+        const processor = await this.getMember(request.processedBy);
+        processorName = processor ? `${processor.firstName} ${processor.lastName}` : "Unknown";
+      }
+
+      result.push({
+        ...request,
+        memberName,
+        memberNumber,
+        processorName
+      });
+    }
+
+    return result;
+  }
+
+  async getPendingUnfreezeRequests(): Promise<UnfreezeRequestWithDetails[]> {
+    const pendingRequests = await db
+      .select()
+      .from(unfreezeRequests)
+      .where(eq(unfreezeRequests.status, "pending"))
+      .orderBy(desc(unfreezeRequests.requestedAt));
+
+    const result: UnfreezeRequestWithDetails[] = [];
+    for (const request of pendingRequests) {
+      // Get member information
+      const member = await this.getMember(request.memberId);
+      const memberName = member ? `${member.firstName} ${member.lastName}` : "Unknown";
+      const memberNumber = member?.memberNumber || "Unknown";
+
+      result.push({
+        ...request,
+        memberName,
+        memberNumber
+      });
+    }
+
+    return result;
+  }
+
+  async createUnfreezeRequest(request: InsertUnfreezeRequest): Promise<UnfreezeRequest> {
+    const [newRequest] = await db
+      .insert(unfreezeRequests)
+      .values(request)
+      .returning();
+    return newRequest;
+  }
+
+  async updateUnfreezeRequest(id: string, updates: Partial<UnfreezeRequest>): Promise<UnfreezeRequest> {
+    const [updatedRequest] = await db
+      .update(unfreezeRequests)
+      .set(updates)
+      .where(eq(unfreezeRequests.id, id))
+      .returning();
+    
+    if (!updatedRequest) {
+      throw new Error("Unfreeze request not found");
+    }
+    
+    return updatedRequest;
+  }
+
+  async processUnfreezeRequest(id: string, processedBy: string, status: "approved" | "denied", adminNotes?: string): Promise<UnfreezeRequest> {
+    const [updatedRequest] = await db
+      .update(unfreezeRequests)
+      .set({
+        status,
+        processedBy,
+        processedAt: new Date(),
+        adminNotes
+      })
+      .where(eq(unfreezeRequests.id, id))
+      .returning();
+    
+    if (!updatedRequest) {
+      throw new Error("Unfreeze request not found");
+    }
+
+    // If approved, update member status to active
+    if (status === "approved") {
+      await this.updateMemberStatus(updatedRequest.memberId, "active");
+    }
+    
+    return updatedRequest;
   }
 
   // Dashboard

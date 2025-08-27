@@ -11,10 +11,13 @@ import {
   type InsertSavings,
   type Repayment,
   type InsertRepayment,
+  type UnfreezeRequest,
+  type InsertUnfreezeRequest,
   type MemberWithSavings,
   type LoanWithMember,
   type TransactionWithDetails,
   type RepaymentWithDetails,
+  type UnfreezeRequestWithDetails,
   type DashboardStats
 } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -58,6 +61,13 @@ export interface IStorage {
   getRepayments(): Promise<RepaymentWithDetails[]>;
   getRepaymentsByLoan(loanId: string): Promise<RepaymentWithDetails[]>;
   createRepayment(repayment: InsertRepayment): Promise<Repayment>;
+
+  // Unfreeze Requests
+  getUnfreezeRequests(): Promise<UnfreezeRequestWithDetails[]>;
+  getPendingUnfreezeRequests(): Promise<UnfreezeRequestWithDetails[]>;
+  createUnfreezeRequest(request: InsertUnfreezeRequest): Promise<UnfreezeRequest>;
+  updateUnfreezeRequest(id: string, updates: Partial<UnfreezeRequest>): Promise<UnfreezeRequest>;
+  processUnfreezeRequest(id: string, processedBy: string, status: "approved" | "denied", adminNotes?: string): Promise<UnfreezeRequest>;
 
   // Dashboard
   getDashboardStats(): Promise<DashboardStats>;

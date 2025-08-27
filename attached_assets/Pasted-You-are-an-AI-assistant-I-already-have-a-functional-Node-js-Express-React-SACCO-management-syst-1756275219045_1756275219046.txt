@@ -1,0 +1,32 @@
+You are an AI assistant. I already have a functional Node.js + Express + React SACCO management system. Do not break or remove any existing functionality — instead, extend the system with the following feature:
+
+**Feature: Member Status Management**
+
+1. Add a new field `status` for members with three possible values:
+   - "active" → can save and apply for loans normally
+   - "part-time" → can only save money and view their savings history, but cannot apply for loans
+   - "deactivated" → account is frozen. They cannot access any transaction functionality. The only option is to request "Unfreeze Account". This request should be visible to Admins/Managers for approval.
+
+2. Update the system so that:
+   - When a member logs in:
+     - If status = "active": full member portal as it currently is.
+     - If status = "part-time": show portal with savings + transaction history only (disable loan application).
+     - If status = "deactivated": block financial actions, but display a button to "Request Unfreeze". This sends a request to admins/managers.
+
+   - When an admin/manager logs in:
+     - They should see a new "Member Management" section where they can change any member’s status (Active, Part-time, Deactivated).
+     - They should also see a list of "Unfreeze Requests" and be able to approve/deny them, which updates the member’s status accordingly.
+
+3. Ensure this integrates smoothly into the existing database models, APIs, and React UI without breaking anything already working.
+
+4. Include demo data + logins:
+   - Active member (username: active1, password: pass123)
+   - Part-time member (username: parttime1, password: pass123)
+   - Deactivated member (username: deact1, password: pass123)
+   Their portals should reflect the correct restrictions automatically.
+
+5. Maintain the demo admin/manager logins. Give them ability to update statuses and handle unfreeze requests.
+
+Make sure:
+- Existing member/loan/savings features stay functional.
+- This status functionality is cleanly added on top of what already exists.
