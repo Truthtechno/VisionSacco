@@ -5,26 +5,36 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, CreditCard, DollarSign, Calendar, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import type { Loan, Transaction, Savings } from "@shared/schema";
 
-const MOCK_MEMBER_ID = "member-123"; // In real app, this would come from auth context
-
 export default function MemberPortal() {
+  const { user } = useAuth();
   const [showLoanRequest, setShowLoanRequest] = useState(false);
 
-  // Fetch member's loans
-  const { data: loans = [], isLoading: loansLoading } = useQuery<Loan[]>({
-    queryKey: ['/api/members', MOCK_MEMBER_ID, 'loans'],
+  // For now, since we have demo data in the members table, let's fetch from demo members
+  // In a real app, we'd match auth users to member records
+  const demoMemberId = "M001"; // This should be mapped from user.id to member.id
+
+  // Fetch member's loans (using demo data approach)
+  const { data: allLoans = [], isLoading: loansLoading } = useQuery<Loan[]>({
+    queryKey: ['/api/loans'],
   });
 
-  // Fetch member's transactions
-  const { data: transactions = [], isLoading: transactionsLoading } = useQuery<Transaction[]>({
-    queryKey: ['/api/members', MOCK_MEMBER_ID, 'transactions'],
+  // Filter loans for this member (demo approach)
+  const loans = allLoans.filter(loan => loan.memberId === demoMemberId);
+
+  // Fetch member's transactions (using demo data approach)
+  const { data: allTransactions = [], isLoading: transactionsLoading } = useQuery<Transaction[]>({
+    queryKey: ['/api/transactions'],
   });
+
+  // Filter transactions for this member
+  const transactions = allTransactions.filter(transaction => transaction.memberId === demoMemberId);
 
   // Fetch member's savings
   const { data: savings } = useQuery<Savings>({
-    queryKey: ['/api/members', MOCK_MEMBER_ID, 'savings'],
+    queryKey: ['/api/members', demoMemberId, 'savings'],
   });
 
   const formatCurrency = (amount: string) => {

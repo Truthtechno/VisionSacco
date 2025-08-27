@@ -7,12 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { CheckCircle, XCircle, Clock, Users, CreditCard, TrendingUp, FileText, Eye } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { LoanWithMember, DashboardStats } from "@shared/schema";
 
-const MOCK_MANAGER_ID = "manager-123"; // In real app, this would come from auth context
-
 export default function ManagerDashboard() {
+  const { user } = useAuth();
   const [selectedLoan, setSelectedLoan] = useState<LoanWithMember | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -35,7 +35,7 @@ export default function ManagerDashboard() {
   // Approve loan mutation
   const approveLoanMutation = useMutation({
     mutationFn: async (loanId: string) => {
-      return apiRequest(`/api/loans/${loanId}/approve`, 'POST', { approverId: MOCK_MANAGER_ID });
+      return apiRequest('POST', `/api/loans/${loanId}/approve`, { approverId: user?.id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/loans'] });
@@ -58,7 +58,7 @@ export default function ManagerDashboard() {
   // Reject loan mutation
   const rejectLoanMutation = useMutation({
     mutationFn: async (loanId: string) => {
-      return apiRequest(`/api/loans/${loanId}/reject`, 'POST', { approverId: MOCK_MANAGER_ID });
+      return apiRequest('POST', `/api/loans/${loanId}/reject`, { approverId: user?.id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/loans'] });

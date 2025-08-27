@@ -760,6 +760,6 @@ export class MemStorage implements IStorage {
   }
 }
 
-import { DatabaseStorage } from './database-storage';
+import { DatabaseStorage } from './database-storage-fixed';
 
 export const storage = new DatabaseStorage();

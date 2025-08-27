@@ -19,18 +19,38 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Members", href: "/members", icon: Users },
-  { name: "Loans", href: "/loans", icon: DollarSign },
-  { name: "Reports", href: "/reports", icon: FileText },
-  { name: "Admin", href: "/admin", icon: Settings },
-];
-
 export default function AppLayout({ children }: AppLayoutProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Role-based navigation
+  const getNavigation = () => {
+    if (user?.role === "admin") {
+      return [
+        { name: "Admin Panel", href: "/admin-panel", icon: Home },
+        { name: "Members", href: "/members", icon: Users },
+        { name: "Loans", href: "/loans", icon: DollarSign },
+        { name: "Reports", href: "/reports", icon: FileText },
+        { name: "Settings", href: "/admin", icon: Settings },
+      ];
+    } else if (user?.role === "manager") {
+      return [
+        { name: "Manager Dashboard", href: "/manager", icon: Home },
+        { name: "Members", href: "/members", icon: Users },
+        { name: "Loans", href: "/loans", icon: DollarSign },
+        { name: "Reports", href: "/reports", icon: FileText },
+      ];
+    } else {
+      return [
+        { name: "My Portal", href: "/member-portal", icon: Home },
+        { name: "My Loans", href: "/member-portal", icon: DollarSign },
+        { name: "My Profile", href: "/member-portal", icon: User },
+      ];
+    }
+  };
+
+  const navigation = getNavigation();
 
   const handleLogout = () => {
     logout();

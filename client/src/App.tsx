@@ -41,23 +41,69 @@ function Router() {
     );
   }
 
+  // Role-based routing with redirects
   return (
     <AppLayout>
       <Switch>
         <Route path="/auth" component={() => {
-          window.location.href = "/";
+          // Redirect authenticated users based on their role
+          if (user.role === "admin") {
+            window.location.href = "/admin-panel";
+          } else if (user.role === "manager") {
+            window.location.href = "/manager";
+          } else {
+            window.location.href = "/member-portal";
+          }
           return null;
         }} />
-        <Route path="/" component={Dashboard} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/members" component={Members} />
-        <Route path="/loans" component={Loans} />
-        <Route path="/reports" component={Reports} />
-        <Route path="/admin" component={Admin} />
-        <Route path="/member-portal" component={MemberPortal} />
-        <Route path="/manager" component={ManagerDashboard} />
-        <Route path="/admin-panel" component={AdminPanel} />
-        <Route component={NotFound} />
+        
+        {/* Admin routes */}
+        {user.role === "admin" && (
+          <>
+            <Route path="/" component={() => {
+              window.location.href = "/admin-panel";
+              return null;
+            }} />
+            <Route path="/admin-panel" component={AdminPanel} />
+            <Route path="/admin" component={Admin} />
+            <Route path="/members" component={Members} />
+            <Route path="/loans" component={Loans} />
+            <Route path="/reports" component={Reports} />
+          </>
+        )}
+        
+        {/* Manager routes */}
+        {user.role === "manager" && (
+          <>
+            <Route path="/" component={() => {
+              window.location.href = "/manager";
+              return null;
+            }} />
+            <Route path="/manager" component={ManagerDashboard} />
+            <Route path="/members" component={Members} />
+            <Route path="/loans" component={Loans} />
+            <Route path="/reports" component={Reports} />
+          </>
+        )}
+        
+        {/* Member routes */}
+        {user.role === "member" && (
+          <>
+            <Route path="/" component={() => {
+              window.location.href = "/member-portal";
+              return null;
+            }} />
+            <Route path="/member-portal" component={MemberPortal} />
+          </>
+        )}
+        
+        {/* Fallback for unauthorized access */}
+        <Route component={() => (
+          <div className="flex flex-col items-center justify-center min-h-96">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+            <p className="text-gray-600">You don't have permission to access this page.</p>
+          </div>
+        )} />
       </Switch>
     </AppLayout>
   );
