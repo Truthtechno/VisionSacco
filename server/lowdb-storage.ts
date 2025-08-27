@@ -1,6 +1,8 @@
 import { 
   type Member, 
   type InsertMember, 
+  type User,
+  type InsertUser,
   type Loan, 
   type InsertLoan,
   type Transaction,
@@ -21,6 +23,7 @@ import { JSONFile } from 'lowdb/node';
 import type { IStorage } from './storage';
 
 interface DatabaseData {
+  users: User[];
   members: Member[];
   loans: Loan[];
   transactions: Transaction[];
@@ -29,6 +32,7 @@ interface DatabaseData {
 }
 
 const defaultData: DatabaseData = {
+  users: [],
   members: [],
   loans: [],
   transactions: [],
@@ -50,10 +54,24 @@ export class LowDBStorage implements IStorage {
     
     await this.db.read();
     
-    // Convert date strings back to Date objects
+    // Initialize missing collections
+    if (!this.db.data.users) this.db.data.users = [];
+    if (!this.db.data.members) this.db.data.members = [];
+    if (!this.db.data.loans) this.db.data.loans = [];
+    if (!this.db.data.transactions) this.db.data.transactions = [];
+    if (!this.db.data.savings) this.db.data.savings = [];
+    if (!this.db.data.repayments) this.db.data.repayments = [];
+    
+    // Convert date strings back to Date objects and ensure status field
     this.db.data.members = this.db.data.members.map(member => ({
       ...member,
+      status: member.status || "active",
       dateJoined: new Date(member.dateJoined)
+    }));
+    
+    this.db.data.users = this.db.data.users.map(user => ({
+      ...user,
+      createdAt: new Date(user.createdAt)
     }));
     
     this.db.data.loans = this.db.data.loans.map(loan => ({
@@ -104,6 +122,7 @@ export class LowDBStorage implements IStorage {
         nationalId: "CM123456789",
         address: "Kampala, Uganda",
         role: "admin",
+        status: "active",
         dateJoined: new Date("2023-01-15"),
         isActive: true,
       },
@@ -117,6 +136,7 @@ export class LowDBStorage implements IStorage {
         nationalId: "CM987654321",
         address: "Gulu, Uganda",
         role: "manager",
+        status: "active",
         dateJoined: new Date("2023-03-20"),
         isActive: true,
       },
@@ -130,6 +150,7 @@ export class LowDBStorage implements IStorage {
         nationalId: "CM456789123",
         address: "Jinja, Uganda",
         role: "member",
+        status: "active",
         dateJoined: new Date("2024-01-10"),
         isActive: true,
       }
@@ -225,6 +246,34 @@ export class LowDBStorage implements IStorage {
     await this.db.write();
   }
 
+  // Authentication methods
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    await this.ensureInitialized();
+    return this.db.data.users.find(u => u.email === email);
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    await this.ensureInitialized();
+    return this.db.data.users.find(u => u.id === id);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    await this.ensureInitialized();
+    const id = randomUUID();
+    const user: User = {
+      id,
+      name: insertUser.name,
+      email: insertUser.email,
+      passwordHash: insertUser.passwordHash,
+      role: insertUser.role || "member",
+      createdAt: new Date(),
+    };
+    
+    this.db.data.users.push(user);
+    await this.db.write();
+    return user;
+  }
+
   async getMembers(): Promise<MemberWithSavings[]> {
     await this.ensureInitialized();
     return this.db.data.members.map(member => {
@@ -259,6 +308,7 @@ export class LowDBStorage implements IStorage {
       nationalId: insertMember.nationalId ?? null,
       address: insertMember.address ?? null,
       role: insertMember.role ?? "member",
+      status: insertMember.status ?? "active",
       dateJoined: new Date(),
       isActive: insertMember.isActive ?? true,
     };
@@ -280,6 +330,18 @@ export class LowDBStorage implements IStorage {
     }
     
     this.db.data.members[memberIndex] = { ...this.db.data.members[memberIndex], ...updates };
+    await this.db.write();
+    return this.db.data.members[memberIndex];
+  }
+
+  async updateMemberStatus(id: string, status: string): Promise<Member> {
+    await this.ensureInitialized();
+    const memberIndex = this.db.data.members.findIndex(m => m.id === id);
+    if (memberIndex === -1) {
+      throw new Error("Member not found");
+    }
+    
+    this.db.data.members[memberIndex].status = status;
     await this.db.write();
     return this.db.data.members[memberIndex];
   }
@@ -616,6 +678,7 @@ export class LowDBStorage implements IStorage {
   async loadDemoData(): Promise<void> {
     // Clear existing data
     this.db.data = {
+      users: [],
       members: [],
       loans: [],
       transactions: [],
@@ -660,6 +723,7 @@ export class LowDBStorage implements IStorage {
         nationalId: `CM${String(Math.floor(Math.random() * 900000000) + 100000000)}`,
         address: ["Kampala", "Entebbe", "Jinja", "Gulu", "Mbarara", "Fort Portal"][Math.floor(Math.random() * 6)] + ", Uganda",
         role: i === 0 ? "admin" : i === 1 ? "manager" : "member",
+        status: "active",
         dateJoined: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
         isActive: true,
       };

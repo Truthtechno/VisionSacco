@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Eye, DollarSign, Download, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,16 +8,89 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import LoanForm from "@/components/forms/LoanForm";
+import CreateLoanModal from "@/components/modals/CreateLoanModal";
+import LoanDetailsModal from "@/components/modals/LoanDetailsModal";
+import RecordPaymentModal from "@/components/modals/RecordPaymentModal";
+import { exportLoansCSV } from "@/components/export/ExportUtils";
 import { type LoanWithMember } from "@shared/schema";
 
 export default function Loans() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCreateLoanModal, setShowCreateLoanModal] = useState(false);
+  const [showLoanDetailsModal, setShowLoanDetailsModal] = useState(false);
+  const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<LoanWithMember | null>(null);
   const { toast } = useToast();
 
   const { data: loans = [], isLoading } = useQuery<LoanWithMember[]>({
     queryKey: ["/api/loans"],
+  });
+
+  const handleExportLoans = async () => {
+    try {
+      await exportLoansCSV(loans, "current");
+      toast({
+        title: "Export successful",
+        description: "Loans data has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: "Failed to export loans data.",
+      });
+    }
+  };
+
+  const handleViewDetails = (loan: LoanWithMember) => {
+    setSelectedLoan(loan);
+    setShowLoanDetailsModal(true);
+  };
+
+  const handleRecordPayment = (loan: LoanWithMember) => {
+    setSelectedLoan(loan);
+    setShowRecordPaymentModal(true);
+  };
+
+  const approveLoanMutation = useMutation({
+    mutationFn: (loanId: string) =>
+      apiRequest("POST", `/api/loans/${loanId}/approve`),
+    onSuccess: () => {
+      toast({
+        title: "Loan approved",
+        description: "The loan has been successfully approved.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to approve loan.",
+      });
+    },
+  });
+
+  const rejectLoanMutation = useMutation({
+    mutationFn: (loanId: string) =>
+      apiRequest("POST", `/api/loans/${loanId}/reject`),
+    onSuccess: () => {
+      toast({
+        title: "Loan rejected",
+        description: "The loan has been rejected.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to reject loan.",
+      });
+    },
   });
 
   const filteredLoans = loans.filter(loan =>
@@ -73,24 +146,25 @@ export default function Loans() {
               Loans Management
             </h2>
             <p className="mt-1 text-sm sm:text-base text-gray-500">
-              Track and manage member loans and repayments
+              Track and manage all SACCO loans
             </p>
           </div>
-          <div className="mt-4 md:mt-0">
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="mobile-button touch-friendly" data-testid="button-add-loan">
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Loan
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md" data-testid="loan-dialog">
-                <DialogHeader>
-                  <DialogTitle>Create New Loan</DialogTitle>
-                </DialogHeader>
-                <LoanForm onSuccess={() => setDialogOpen(false)} />
-              </DialogContent>
-            </Dialog>
+          <div className="mt-4 flex flex-col sm:flex-row md:mt-0 md:ml-4 space-y-2 sm:space-y-0 sm:space-x-3">
+            <Button
+              variant="outline"
+              onClick={handleExportLoans}
+              data-testid="button-export-loans"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            <Button
+              onClick={() => setShowCreateLoanModal(true)}
+              data-testid="button-create-loan"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create Loan
+            </Button>
           </div>
         </div>
 
@@ -101,7 +175,7 @@ export default function Loans() {
             <Input
               type="text"
               placeholder="Search loans..."
-              className="pl-10 mobile-button"
+              className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               data-testid="input-search-loans"
@@ -109,145 +183,137 @@ export default function Loans() {
           </div>
         </div>
 
-        {/* Loans Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <Card data-testid="loans-summary-active">
-            <CardContent className="p-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">
-                  {loans.filter(l => l.status === 'active').length}
-                </p>
-                <p className="text-sm text-gray-600">Active Loans</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card data-testid="loans-summary-total-amount">
-            <CardContent className="p-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-600">
-                  UGX {loans.reduce((sum, l) => sum + parseFloat(l.balance), 0).toLocaleString()}
-                </p>
-                <p className="text-sm text-gray-600">Total Outstanding</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card data-testid="loans-summary-overdue">
-            <CardContent className="p-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-red-600">
-                  {loans.filter(l => l.status === 'overdue').length}
-                </p>
-                <p className="text-sm text-gray-600">Overdue Loans</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Loans Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="loans-grid">
-          {filteredLoans.map((loan) => {
-            const progress = calculateProgress(loan.principal, loan.balance);
-            
-            return (
-              <Card key={loan.id} className="hover:shadow-md transition-shadow" data-testid={`loan-card-${loan.id}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg" data-testid={`loan-${loan.id}-number`}>
-                      {loan.loanNumber}
-                    </CardTitle>
-                    <Badge className={getStatusColor(loan.status)} data-testid={`loan-${loan.id}-status`}>
-                      {loan.status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-gray-600" data-testid={`loan-${loan.id}-member`}>
-                    {loan.memberName}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Principal:</span>
-                      <span className="text-sm font-medium" data-testid={`loan-${loan.id}-principal`}>
-                        UGX {parseInt(loan.principal).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Balance:</span>
-                      <span className="text-sm font-medium text-red-600" data-testid={`loan-${loan.id}-balance`}>
-                        UGX {parseInt(loan.balance).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Interest Rate:</span>
-                      <span className="text-sm font-medium" data-testid={`loan-${loan.id}-rate`}>
-                        {loan.interestRate}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Term:</span>
-                      <span className="text-sm font-medium" data-testid={`loan-${loan.id}-term`}>
-                        {loan.termMonths} months
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Due Date:</span>
-                      <span className="text-sm font-medium" data-testid={`loan-${loan.id}-due-date`}>
-                        {loan.dueDate ? new Date(loan.dueDate).toLocaleDateString() : 'N/A'}
-                      </span>
-                    </div>
-                  </div>
+          {filteredLoans.map((loan) => (
+            <Card key={loan.id} className="hover:shadow-md transition-shadow" data-testid={`loan-card-${loan.id}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg" data-testid={`loan-${loan.id}-number`}>
+                    {loan.loanNumber}
+                  </CardTitle>
+                  <Badge className={getStatusColor(loan.status)} data-testid={`loan-${loan.id}-status`}>
+                    {loan.status}
+                  </Badge>
+                </div>
+                <p className="text-sm text-gray-500" data-testid={`loan-${loan.id}-member`}>
+                  {loan.memberName}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Principal:</span>
+                  <span className="text-sm font-medium" data-testid={`loan-${loan.id}-principal`}>
+                    UGX {parseFloat(loan.principal).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Balance:</span>
+                  <span className="text-sm font-medium text-red-600" data-testid={`loan-${loan.id}-balance`}>
+                    UGX {parseFloat(loan.balance).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Progress:</span>
+                  <span className="text-sm font-medium text-green-600">
+                    {calculateProgress(loan.principal, loan.balance).toFixed(1)}%
+                  </span>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-emerald-600 h-2 rounded-full" 
+                    style={{ width: `${calculateProgress(loan.principal, loan.balance)}%` }}
+                  ></div>
+                </div>
 
-                  {/* Repayment Progress */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Repayment Progress</span>
-                      <span className="text-xs text-gray-500" data-testid={`loan-${loan.id}-progress-percent`}>
-                        {progress.toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full transition-all"
-                        style={{ width: `${progress}%` }}
-                        data-testid={`loan-${loan.id}-progress-bar`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-2 pt-2">
-                    <Button size="sm" variant="outline" className="flex-1 touch-friendly" data-testid={`button-view-loan-${loan.id}`}>
-                      View Details
+                {/* Action Buttons */}
+                <div className="flex space-x-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewDetails(loan)}
+                    data-testid={`button-view-loan-${loan.id}`}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  
+                  {loan.status === "active" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRecordPayment(loan)}
+                      data-testid={`button-record-payment-${loan.id}`}
+                    >
+                      <DollarSign className="h-4 w-4 mr-1" />
+                      Payment
                     </Button>
-                    {loan.status === 'active' && (
-                      <Button size="sm" className="flex-1 touch-friendly" data-testid={`button-payment-loan-${loan.id}`}>
-                        Record Payment
+                  )}
+                  
+                  {loan.status === "pending" && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => approveLoanMutation.mutate(loan.id)}
+                        data-testid={`button-approve-loan-${loan.id}`}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approve
                       </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => rejectLoanMutation.mutate(loan.id)}
+                        data-testid={`button-reject-loan-${loan.id}`}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {filteredLoans.length === 0 && (
           <div className="text-center py-12" data-testid="no-loans-found">
             <p className="text-gray-500 text-lg">
-              {searchTerm ? "No loans found matching your search." : "No loans issued yet."}
+              {searchTerm ? "No loans found matching your search." : "No loans registered yet."}
             </p>
             {!searchTerm && (
               <Button
-                className="mt-4 mobile-button touch-friendly"
-                onClick={() => setDialogOpen(true)}
-                data-testid="button-add-first-loan"
+                className="mt-4"
+                onClick={() => setShowCreateLoanModal(true)}
+                data-testid="button-create-first-loan"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Issue Your First Loan
+                Create Your First Loan
               </Button>
             )}
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <CreateLoanModal
+        isOpen={showCreateLoanModal}
+        onClose={() => setShowCreateLoanModal(false)}
+      />
+      <LoanDetailsModal
+        isOpen={showLoanDetailsModal}
+        onClose={() => setShowLoanDetailsModal(false)}
+        loan={selectedLoan}
+      />
+      <RecordPaymentModal
+        isOpen={showRecordPaymentModal}
+        onClose={() => setShowRecordPaymentModal(false)}
+        loan={selectedLoan}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Download, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +9,40 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import MemberForm from "@/components/forms/MemberForm";
+import AddMemberModal from "@/components/modals/AddMemberModal";
+import CreateLoanModal from "@/components/modals/CreateLoanModal";
+import { exportMembersCSV } from "@/components/export/ExportUtils";
 import { type MemberWithSavings } from "@shared/schema";
 
 export default function Members() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<MemberWithSavings | null>(null);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showCreateLoanModal, setShowCreateLoanModal] = useState(false);
+  const [selectedMemberForLoan, setSelectedMemberForLoan] = useState<string>("");
   const { toast } = useToast();
+
+  const handleExportMembers = async () => {
+    try {
+      await exportMembersCSV(members, "current");
+      toast({
+        title: "Export successful",
+        description: "Members data has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: "Failed to export members data.",
+      });
+    }
+  };
+
+  const handleCreateLoan = (memberId: string) => {
+    setSelectedMemberForLoan(memberId);
+    setShowCreateLoanModal(true);
+  };
 
   const { data: members = [], isLoading } = useQuery<MemberWithSavings[]>({
     queryKey: ["/api/members"],
@@ -210,7 +237,7 @@ export default function Members() {
             {!searchTerm && (
               <Button
                 className="mt-4"
-                onClick={() => setDialogOpen(true)}
+                onClick={() => setShowAddMemberModal(true)}
                 data-testid="button-add-first-member"
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -220,6 +247,17 @@ export default function Members() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <AddMemberModal
+        isOpen={showAddMemberModal}
+        onClose={() => setShowAddMemberModal(false)}
+      />
+      <CreateLoanModal
+        isOpen={showCreateLoanModal}
+        onClose={() => setShowCreateLoanModal(false)}
+        preselectedMemberId={selectedMemberForLoan}
+      />
     </div>
   );
 }

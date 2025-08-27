@@ -1,10 +1,180 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema } from "@shared/schema";
+import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { nanoid } from "nanoid";
+
+// Extend session interface for TypeScript
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+  }
+}
+
+// Initialize demo users
+async function initializeDemoUsers() {
+  try {
+    // Check if users already exist
+    const existingAdmin = await storage.getUserByEmail("admin@sacco.test");
+    if (existingAdmin) return; // Users already initialized
+    
+    // Create demo users with hashed passwords
+    const demoPassword = "password123"; // Demo password for all users
+    const hashedPassword = await bcrypt.hash(demoPassword, 10);
+    
+    await storage.createUser({
+      name: "Admin User",
+      email: "admin@sacco.test",
+      passwordHash: hashedPassword,
+      role: "admin"
+    });
+    
+    await storage.createUser({
+      name: "Manager User",
+      email: "manager@sacco.test",
+      passwordHash: hashedPassword,
+      role: "manager"
+    });
+    
+    await storage.createUser({
+      name: "Member User",
+      email: "member@sacco.test",
+      passwordHash: hashedPassword,
+      role: "member"
+    });
+    
+    console.log("Demo users initialized:");
+    console.log("- admin@sacco.test / password123 (admin)");
+    console.log("- manager@sacco.test / password123 (manager)");
+    console.log("- member@sacco.test / password123 (member)");
+  } catch (error) {
+    console.error("Failed to initialize demo users:", error);
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize demo users
+  await initializeDemoUsers();
+
+  // Authentication routes
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const { name, email, password } = req.body;
+      
+      if (!name || !email || !password) {
+        return res.status(400).json({ success: false, error: "Name, email, and password are required" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ success: false, error: "User already exists with this email" });
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
+      
+      // Create user
+      const user = await storage.createUser({
+        name,
+        email,
+        passwordHash,
+        role: "member"
+      });
+
+      // Create session
+      req.session.userId = user.id;
+
+      res.status(201).json({ 
+        success: true, 
+        data: { 
+          id: user.id, 
+          name: user.name, 
+          email: user.email, 
+          role: user.role 
+        } 
+      });
+    } catch (error) {
+      console.error('Signup error:', error);
+      res.status(500).json({ success: false, error: "Failed to create user" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ success: false, error: "Email and password are required" });
+      }
+
+      // Find user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ success: false, error: "Invalid credentials" });
+      }
+
+      // Verify password
+      const isValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ success: false, error: "Invalid credentials" });
+      }
+
+      // Create session
+      req.session.userId = user.id;
+
+      res.json({ 
+        success: true, 
+        data: { 
+          id: user.id, 
+          name: user.name, 
+          email: user.email, 
+          role: user.role 
+        } 
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ success: false, error: "Failed to authenticate" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ success: false, error: "Failed to logout" });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ success: false, error: "Not authenticated" });
+      }
+
+      const user = await storage.getUserById(req.session.userId);
+      if (!user) {
+        return res.status(401).json({ success: false, error: "User not found" });
+      }
+
+      res.json({ 
+        success: true, 
+        data: { 
+          id: user.id, 
+          name: user.name, 
+          email: user.email, 
+          role: user.role 
+        } 
+      });
+    } catch (error) {
+      console.error('Get user error:', error);
+      res.status(500).json({ success: false, error: "Failed to get user" });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/dashboard/stats", async (req, res) => {
     try {
@@ -70,6 +240,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Member not found" });
       }
       res.status(500).json({ message: "Failed to update member" });
+    }
+  });
+
+  app.patch("/api/members/:id/status", async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!status || !["active", "part-time", "deactivated"].includes(status)) {
+        return res.status(400).json({ success: false, error: "Invalid status" });
+      }
+      
+      const member = await storage.updateMemberStatus(req.params.id, status);
+      res.json({ success: true, data: member });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Member not found") {
+        return res.status(404).json({ success: false, error: "Member not found" });
+      }
+      res.status(500).json({ success: false, error: "Failed to update member status" });
     }
   });
 

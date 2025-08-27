@@ -3,6 +3,16 @@ import { pgTable, text, varchar, decimal, integer, timestamp, boolean } from "dr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Users table for authentication
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("member"), // member, manager, admin
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const members = pgTable("members", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   memberNumber: text("member_number").notNull().unique(),
@@ -13,6 +23,7 @@ export const members = pgTable("members", {
   nationalId: text("national_id").unique(),
   address: text("address"),
   role: text("role").notNull().default("member"), // member, manager, admin
+  status: text("status").notNull().default("active"), // active, part-time, deactivated
   dateJoined: timestamp("date_joined").defaultNow().notNull(),
   isActive: boolean("is_active").default(true).notNull(),
 });
@@ -62,6 +73,11 @@ export const repayments = pgTable("repayments", {
   notes: text("notes"),
 });
 
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertMemberSchema = createInsertSchema(members).omit({
   id: true,
   dateJoined: true,
@@ -88,6 +104,8 @@ export const insertRepaymentSchema = createInsertSchema(repayments).omit({
   paymentDate: true,
 });
 
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
 export type InsertMember = z.infer<typeof insertMemberSchema>;
 export type Member = typeof members.$inferSelect;
 export type InsertLoan = z.infer<typeof insertLoanSchema>;

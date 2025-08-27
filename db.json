@@ -1,4 +1,30 @@
 {
+  "users": [
+    {
+      "id": "86a17084-947c-46cd-8f2f-9dc669fa773d",
+      "name": "Admin User",
+      "email": "admin@sacco.test",
+      "passwordHash": "$2b$10$cgbe17EU07fLYJWKqDwkfeQ/PPkJdjzSfkg1hRrOdF6EeLCbTXNCq",
+      "role": "admin",
+      "createdAt": "2025-08-27T04:15:58.170Z"
+    },
+    {
+      "id": "5171196b-5b9a-42d8-872a-9cf22c1071cc",
+      "name": "Manager User",
+      "email": "manager@sacco.test",
+      "passwordHash": "$2b$10$cgbe17EU07fLYJWKqDwkfeQ/PPkJdjzSfkg1hRrOdF6EeLCbTXNCq",
+      "role": "manager",
+      "createdAt": "2025-08-27T04:15:58.181Z"
+    },
+    {
+      "id": "cbbd1eb8-f496-4e12-b66e-f17d57f85606",
+      "name": "Member User",
+      "email": "member@sacco.test",
+      "passwordHash": "$2b$10$cgbe17EU07fLYJWKqDwkfeQ/PPkJdjzSfkg1hRrOdF6EeLCbTXNCq",
+      "role": "member",
+      "createdAt": "2025-08-27T04:15:58.187Z"
+    }
+  ],
   "members": [
     {
       "id": "bb00727e-738d-498b-b789-a34720653024",
@@ -10,6 +36,7 @@
       "nationalId": "CM123456789",
       "address": "Kampala, Uganda",
       "role": "admin",
+      "status": "active",
       "dateJoined": "2023-01-15T00:00:00.000Z",
       "isActive": true
     },
@@ -23,6 +50,7 @@
       "nationalId": "CM987654321",
       "address": "Gulu, Uganda",
       "role": "manager",
+      "status": "active",
       "dateJoined": "2023-03-20T00:00:00.000Z",
       "isActive": true
     },
@@ -36,7 +64,22 @@
       "nationalId": "CM456789123",
       "address": "Jinja, Uganda",
       "role": "member",
+      "status": "active",
       "dateJoined": "2024-01-10T00:00:00.000Z",
+      "isActive": true
+    },
+    {
+      "id": "f03b423b-628c-4fcc-893b-476b868b5a7b",
+      "memberNumber": "",
+      "firstName": "BRIAN",
+      "lastName": "ASABA",
+      "email": "brayamooti@gmail.com",
+      "phone": "+256705362786",
+      "nationalId": "433333",
+      "address": "Plot 97, Naalya",
+      "role": "member",
+      "status": "active",
+      "dateJoined": "2025-08-25T17:42:16.745Z",
       "isActive": true
     }
   ],
@@ -124,6 +167,12 @@
       "memberId": "30d89ed4-509c-4d55-9b1a-032b43aedde3",
       "balance": "500000",
       "lastUpdated": "2025-08-25T12:36:40.634Z"
+    },
+    {
+      "id": "1208f014-6b11-4274-9c83-05df85b4eff1",
+      "memberId": "f03b423b-628c-4fcc-893b-476b868b5a7b",
+      "balance": "0",
+      "lastUpdated": "2025-08-25T17:42:16.745Z"
     }
   ],
   "repayments": []

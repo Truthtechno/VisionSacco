@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
   Users, 
@@ -17,9 +18,15 @@ import {
 import StatCard from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import FinancialChart from "@/components/charts/FinancialChart";
+import NewTransactionModal from "@/components/modals/NewTransactionModal";
+import { exportDashboardReport } from "@/components/export/ExportUtils";
+import { useToast } from "@/hooks/use-toast";
 import { type DashboardStats, type TransactionWithDetails } from "@shared/schema";
 
 export default function Dashboard() {
+  const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
+  const { toast } = useToast();
+
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -27,6 +34,22 @@ export default function Dashboard() {
   const { data: recentTransactions, isLoading: transactionsLoading } = useQuery<TransactionWithDetails[]>({
     queryKey: ["/api/transactions"],
   });
+
+  const handleExportReport = async () => {
+    try {
+      await exportDashboardReport(stats, recentTransactions || [], "current");
+      toast({
+        title: "Export successful",
+        description: "Dashboard report has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: "Failed to export dashboard report.",
+      });
+    }
+  };
 
   if (statsLoading) {
     return (
@@ -305,6 +328,12 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <NewTransactionModal
+        isOpen={showNewTransactionModal}
+        onClose={() => setShowNewTransactionModal(false)}
+      />
     </div>
   );
 }
