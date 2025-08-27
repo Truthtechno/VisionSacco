@@ -7,9 +7,94 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import FinancialChart from "@/components/charts/FinancialChart";
 import { type DashboardStats, type TransactionWithDetails, type MemberWithSavings } from "@shared/schema";
+import jsPDF from "jspdf";
 
 export default function Reports() {
   const [selectedPeriod, setSelectedPeriod] = useState("monthly");
+
+  const formatCurrency = (amount: number) => {
+    return `UGX ${amount.toLocaleString()}`;
+  };
+
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString();
+  };
+
+  const generatePDFReport = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("SACCO Financial Report", 20, 30);
+    
+    // Current date
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 45);
+    doc.text(`Report Period: ${selectedPeriod}`, 20, 55);
+    
+    // Summary totals section
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Financial Summary", 20, 75);
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    const summaryY = 90;
+    doc.text(`Total Members: ${stats?.totalMembers || 0}`, 20, summaryY);
+    doc.text(`Total Savings: ${formatCurrency(parseFloat(stats?.totalSavings || "0"))}`, 20, summaryY + 10);
+    doc.text(`Total Loans Disbursed: ${formatCurrency(parseFloat(stats?.totalLoansValue || "0"))}`, 20, summaryY + 20);
+    doc.text(`Total Deposits: ${formatCurrency(totalDeposits)}`, 20, summaryY + 30);
+    doc.text(`Total Withdrawals: ${formatCurrency(totalWithdrawals)}`, 20, summaryY + 40);
+    doc.text(`Loan Disbursements: ${formatCurrency(totalLoanDisbursements)}`, 20, summaryY + 50);
+    doc.text(`Loan Payments: ${formatCurrency(totalLoanPayments)}`, 20, summaryY + 60);
+    doc.text(`Net Cash Flow: ${formatCurrency(netCashFlow)}`, 20, summaryY + 70);
+    
+    // Transactions table
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Transaction History", 20, summaryY + 90);
+    
+    // Manual table creation
+    const tableStartY = summaryY + 110;
+    const rowHeight = 12;
+    const colWidths = [30, 45, 30, 35, 50]; // Column widths
+    const colStarts = [20, 50, 95, 125, 160]; // Column start positions
+    
+    // Table header
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.rect(20, tableStartY - 8, 170, 10); // Header background
+    doc.text("Date", colStarts[0] + 2, tableStartY - 2);
+    doc.text("Member Name", colStarts[1] + 2, tableStartY - 2);
+    doc.text("Type", colStarts[2] + 2, tableStartY - 2);
+    doc.text("Amount", colStarts[3] + 2, tableStartY - 2);
+    doc.text("Description", colStarts[4] + 2, tableStartY - 2);
+    
+    // Table rows
+    doc.setFont("helvetica", "normal");
+    transactions.slice(0, 20).forEach((transaction, index) => {
+      const y = tableStartY + (index * rowHeight) + 5;
+      
+      // Draw row border
+      doc.rect(20, y - 8, 170, rowHeight);
+      
+      // Add data with text truncation for long fields
+      const truncateText = (text: string, maxLength: number) => {
+        return text.length > maxLength ? text.substring(0, maxLength - 3) + "..." : text;
+      };
+      
+      doc.text(formatDate(transaction.transactionDate), colStarts[0] + 2, y);
+      doc.text(truncateText(transaction.memberName || "N/A", 15), colStarts[1] + 2, y);
+      doc.text(truncateText(transaction.type.replace("_", " ").toUpperCase(), 10), colStarts[2] + 2, y);
+      doc.text(formatCurrency(parseFloat(transaction.amount)), colStarts[3] + 2, y);
+      doc.text(truncateText(transaction.description || "", 20), colStarts[4] + 2, y);
+    });
+    
+    // Save the PDF
+    doc.save(`SACCO_Financial_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   const { data: stats } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
@@ -100,7 +185,7 @@ export default function Reports() {
                 <SelectItem value="yearly">This Year</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" data-testid="button-export-report">
+            <Button variant="outline" onClick={generatePDFReport} data-testid="button-export-report">
               <Download className="mr-2 h-4 w-4" />
               Export PDF
             </Button>
