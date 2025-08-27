@@ -547,6 +547,48 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // Create demo transactions for financial reports
+    await this.createDemoTransactions();
+    
     console.log("Demo data loaded successfully");
+  }
+
+  // Create demo transactions for financial reports
+  async createDemoTransactions() {
+    const allMembers = await this.getMembers();
+    const allLoans = await this.getLoans();
+    
+    // Create various transaction types for demo purposes
+    const transactionTypes = [
+      { type: 'deposit', description: 'Savings Deposit', amounts: [50000, 100000, 250000, 500000] },
+      { type: 'withdrawal', description: 'Cash Withdrawal', amounts: [25000, 50000, 75000] },
+      { type: 'loan_disbursement', description: 'Loan Disbursement', amounts: [1000000, 2000000, 5000000] },
+      { type: 'loan_repayment', description: 'Loan Repayment', amounts: [100000, 200000, 300000] }
+    ];
+
+    // Create demo transactions for the last 30 days
+    for (let i = 0; i < 20; i++) {
+      const member = allMembers[Math.floor(Math.random() * allMembers.length)];
+      const transactionType = transactionTypes[Math.floor(Math.random() * transactionTypes.length)];
+      const amount = transactionType.amounts[Math.floor(Math.random() * transactionType.amounts.length)];
+      
+      // Random date within the last 30 days
+      const randomDate = new Date();
+      randomDate.setDate(randomDate.getDate() - Math.floor(Math.random() * 30));
+
+      try {
+        await this.createTransaction({
+          memberId: member.id,
+          loanId: transactionType.type.includes('loan') && allLoans.length > 0 ? 
+            allLoans[Math.floor(Math.random() * allLoans.length)].id : undefined,
+          type: transactionType.type as any,
+          amount: amount.toString(),
+          description: `${transactionType.description} - ${member.firstName} ${member.lastName}`,
+          processedBy: member.id, // Demo: member processes their own transactions
+        });
+      } catch (error) {
+        console.error(`Failed to create demo transaction:`, error);
+      }
+    }
   }
 }

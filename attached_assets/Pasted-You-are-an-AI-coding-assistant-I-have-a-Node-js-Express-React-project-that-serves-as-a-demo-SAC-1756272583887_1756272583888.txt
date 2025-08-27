@@ -1,0 +1,41 @@
+You are an AI coding assistant. I have a Node.js + Express + React project that serves as a demo SACCO management system. The login system is now working, but I need fixes and demo-ready functionality across member, manager, and admin roles.
+
+Here’s what I need you to implement/fix:
+
+1. Member Dashboard
+	•	Ensure all buttons are responsive and functional:
+	•	My Loans → should display the member’s current loan(s).
+	•	My Profile → should display member’s profile info.
+	•	Request a Loan → should open a working loan request form (not just placeholder text). Submitting should create a loan request linked to that member, with status = pending.
+	•	Seed demo data for a member account:
+	•	Example: savings balance = 200,000 UGX.
+	•	Example: 1 active loan = 500,000 UGX, repayment schedule seeded.
+
+2. Loan Workflow
+	•	When a member requests a loan, the manager and admin dashboards should be able to see it under Pending Loans.
+	•	Add functionality for manager/admin to approve or reject loan requests.
+	•	Once approved, update the member’s dashboard with the new loan status and balance.
+
+3. Admin Dashboard
+	•	Fix the Create Loan form so that the “Create Loan” button actually saves a loan entry in the database.
+	•	Ensure that loans created here are visible under member accounts and manager dashboards.
+
+4. Financial Reports
+	•	Seed demo financial data so the reports page is not empty. Example:
+	•	Total Deposits: 10,000,000 UGX
+	•	Total loans disbursed: 5,000,000 UGX
+	•	Total Withdrawals: 1,200,000 UGX
+	•	Net Cash Flow: 20,400,000 UGX
+	•	Make sure the Financial Trends dashboard chat is responsive
+	•	Make sure the reports auto-update when a new loan is approved or a repayment is made.
+
+5. General Fixes
+	•	Make sure the role-based dashboards differ properly:
+	•	Admin: full control (manage users, approve loans, create loans, view reports).
+	•	Manager: loan approvals, view reports, but not user management.
+	•	Member: request loans, view savings/loans/profile.
+	•	Add demo seed data for at least 1 admin, 1 manager, and 2 members.
+
+This system is only for demonstration purposes, so it’s fine to use SQLite, LowDB, or even in-memory JSON objects for persistence. The key is that all buttons, workflows, and reports are functional during the demo.
+
+Please refactor the code so these requirements are fully met and the app is functional end-to-end for demonstration.

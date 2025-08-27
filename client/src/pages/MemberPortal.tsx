@@ -3,9 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CreditCard, DollarSign, Calendar, FileText } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, CreditCard, DollarSign, Calendar, FileText, X } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Loan, Transaction, Savings } from "@shared/schema";
 
 export default function MemberPortal() {
@@ -21,20 +28,27 @@ export default function MemberPortal() {
     queryKey: ['/api/loans'],
   });
 
-  // Filter loans for this member (demo approach)
-  const loans = allLoans.filter(loan => loan.memberId === demoMemberId);
+  // Filter loans for this member - need to use memberRecord.id instead of memberNumber  
+  const loans = memberRecord ? allLoans.filter(loan => loan.memberId === memberRecord.id) : [];
 
   // Fetch member's transactions (using demo data approach)
   const { data: allTransactions = [], isLoading: transactionsLoading } = useQuery<Transaction[]>({
     queryKey: ['/api/transactions'],
   });
 
-  // Filter transactions for this member
-  const transactions = allTransactions.filter(transaction => transaction.memberId === demoMemberId);
+  // Get the actual member record to find the ID
+  const { data: memberRecord } = useQuery({
+    queryKey: ['/api/members'],
+    select: (members: any[]) => members.find(m => m.memberNumber === demoMemberId)
+  });
 
-  // Fetch member's savings
+  // Filter transactions for this member - need to use memberRecord.id instead of memberNumber
+  const transactions = memberRecord ? allTransactions.filter(transaction => transaction.memberId === memberRecord.id) : [];
+
+  // Fetch member's savings using the actual member ID
   const { data: savings } = useQuery<Savings>({
-    queryKey: ['/api/members', demoMemberId, 'savings'],
+    queryKey: ['/api/members', memberRecord?.id, 'savings'],
+    enabled: !!memberRecord?.id,
   });
 
   const formatCurrency = (amount: string) => {
@@ -255,33 +269,198 @@ export default function MemberPortal() {
               <CardTitle>Profile Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <p>Profile management features coming soon</p>
-              </div>
+              {memberRecord ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Member Number</label>
+                      <p className="text-lg font-semibold">{memberRecord.memberNumber}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Status</label>
+                      <p className="text-lg font-semibold capitalize">{memberRecord.status}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Full Name</label>
+                      <p className="text-lg font-semibold">{memberRecord.firstName} {memberRecord.lastName}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Email</label>
+                      <p className="text-lg font-semibold">{memberRecord.email}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Phone</label>
+                      <p className="text-lg font-semibold">{memberRecord.phone}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Date Joined</label>
+                      <p className="text-lg font-semibold">{formatDate(memberRecord.dateJoined)}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Address</label>
+                    <p className="text-lg font-semibold">{memberRecord.address}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Loading profile information...</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Loan Request Modal placeholder */}
-      {showLoanRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" data-testid="modal-loan-request">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Request New Loan</h2>
-            <p className="text-gray-600 mb-4">
-              Loan request form will be implemented here.
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowLoanRequest(false)} data-testid="button-cancel-loan-request">
-                Cancel
-              </Button>
-              <Button onClick={() => setShowLoanRequest(false)} data-testid="button-submit-loan-request">
-                Submit Request
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Loan Request Modal */}
+      <LoanRequestModal 
+        isOpen={showLoanRequest} 
+        onClose={() => setShowLoanRequest(false)} 
+        memberId={memberRecord?.id || ''}
+        memberNumber={demoMemberId}
+      />
     </div>
+  );
+}
+
+// Loan Request Modal Component
+interface LoanRequestModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  memberId: string;
+  memberNumber: string;
+}
+
+function LoanRequestModal({ isOpen, onClose, memberId, memberNumber }: LoanRequestModalProps) {
+  const [formData, setFormData] = useState({
+    principal: '',
+    termMonths: 12,
+    intendedPurpose: '',
+    interestRate: '15.00'
+  });
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const createLoanMutation = useMutation({
+    mutationFn: async (loanData: any) => {
+      return apiRequest('POST', '/api/loans', {
+        ...loanData,
+        memberId,
+        loanNumber: `L${Date.now().toString().slice(-6)}`,
+        status: 'pending'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/loans'] });
+      toast({
+        title: "Loan Request Submitted",
+        description: "Your loan request has been submitted for review.",
+      });
+      onClose();
+      setFormData({
+        principal: '',
+        termMonths: 12,
+        intendedPurpose: '',
+        interestRate: '15.00'
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to submit loan request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.principal || !formData.intendedPurpose) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+    createLoanMutation.mutate(formData);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Request New Loan</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="principal">Loan Amount (UGX)</Label>
+            <Input
+              id="principal"
+              type="number"
+              min="100000"
+              max="50000000"
+              value={formData.principal}
+              onChange={(e) => setFormData({...formData, principal: e.target.value})}
+              placeholder="e.g., 1000000"
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="termMonths">Term (Months)</Label>
+            <Select 
+              value={formData.termMonths.toString()} 
+              onValueChange={(value) => setFormData({...formData, termMonths: parseInt(value)})}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="6">6 months</SelectItem>
+                <SelectItem value="12">12 months</SelectItem>
+                <SelectItem value="18">18 months</SelectItem>
+                <SelectItem value="24">24 months</SelectItem>
+                <SelectItem value="36">36 months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="intendedPurpose">Purpose of Loan</Label>
+            <Select 
+              value={formData.intendedPurpose} 
+              onValueChange={(value) => setFormData({...formData, intendedPurpose: value})}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select purpose" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Business expansion">Business expansion</SelectItem>
+                <SelectItem value="Education">Education</SelectItem>
+                <SelectItem value="Agriculture">Agriculture</SelectItem>
+                <SelectItem value="Housing">Housing</SelectItem>
+                <SelectItem value="Medical">Medical expenses</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createLoanMutation.isPending}>
+              {createLoanMutation.isPending ? "Submitting..." : "Submit Request"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
