@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CheckCircle, XCircle, Clock, Users, CreditCard, TrendingUp, FileText, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Users, CreditCard, TrendingUp, FileText, Eye, Plus, DollarSign } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,6 +14,7 @@ import type { LoanWithMember, DashboardStats } from "@shared/schema";
 export default function ManagerDashboard() {
   const { user } = useAuth();
   const [selectedLoan, setSelectedLoan] = useState<LoanWithMember | null>(null);
+  const [showCreateLoan, setShowCreateLoan] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -339,6 +340,18 @@ export default function ManagerDashboard() {
         </TabsContent>
 
         <TabsContent value="all-loans" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">All Loans</h3>
+            <Button 
+              onClick={() => setShowCreateLoan(true)} 
+              className="bg-teal-600 hover:bg-teal-700"
+              data-testid="button-create-loan"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Loan
+            </Button>
+          </div>
+          
           <Card data-testid="card-all-loans">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -399,6 +412,191 @@ export default function ManagerDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create Loan Modal */}
+      <CreateLoanModal 
+        isOpen={showCreateLoan} 
+        onClose={() => setShowCreateLoan(false)}
+      />
     </div>
+  );
+}
+
+// Create Loan Modal Component
+interface CreateLoanModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function CreateLoanModal({ isOpen, onClose }: CreateLoanModalProps) {
+  const [formData, setFormData] = useState({
+    memberId: '',
+    principal: '',
+    termMonths: 12,
+    intendedPurpose: '',
+    interestRate: '15.00'
+  });
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Get all members for selection
+  const { data: allMembers = [] } = useQuery<any[]>({
+    queryKey: ['/api/members'],
+  });
+
+  const createLoanMutation = useMutation({
+    mutationFn: async (loanData: any) => {
+      return apiRequest('POST', '/api/loans', {
+        ...loanData,
+        loanNumber: `L${Date.now().toString().slice(-6)}`,
+        status: 'approved', // Manager creates pre-approved loans
+        balance: loanData.principal
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/loans'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
+      toast({
+        title: "Loan Created",
+        description: "New loan has been created successfully.",
+      });
+      onClose();
+      setFormData({
+        memberId: '',
+        principal: '',
+        termMonths: 12,
+        intendedPurpose: '',
+        interestRate: '15.00'
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create loan. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.memberId || !formData.principal || !formData.intendedPurpose) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+    createLoanMutation.mutate(formData);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md" data-testid="dialog-create-loan">
+        <DialogHeader>
+          <DialogTitle>Create New Loan</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="member">Select Member *</Label>
+            <Select 
+              value={formData.memberId} 
+              onValueChange={(value) => setFormData({...formData, memberId: value})}
+            >
+              <SelectTrigger data-testid="select-member">
+                <SelectValue placeholder="Choose member" />
+              </SelectTrigger>
+              <SelectContent>
+                {allMembers.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.firstName} {member.lastName} ({member.memberNumber})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="principal">Loan Amount (UGX) *</Label>
+            <Input
+              id="principal"
+              type="number"
+              min="100000"
+              max="50000000"
+              value={formData.principal}
+              onChange={(e) => setFormData({...formData, principal: e.target.value})}
+              placeholder="e.g., 1000000"
+              required
+              data-testid="input-loan-principal"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="termMonths">Term (Months) *</Label>
+            <Select 
+              value={formData.termMonths.toString()} 
+              onValueChange={(value) => setFormData({...formData, termMonths: parseInt(value)})}
+            >
+              <SelectTrigger data-testid="select-loan-term">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="6">6 months</SelectItem>
+                <SelectItem value="12">12 months</SelectItem>
+                <SelectItem value="18">18 months</SelectItem>
+                <SelectItem value="24">24 months</SelectItem>
+                <SelectItem value="36">36 months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="intendedPurpose">Purpose of Loan *</Label>
+            <Select 
+              value={formData.intendedPurpose} 
+              onValueChange={(value) => setFormData({...formData, intendedPurpose: value})}
+            >
+              <SelectTrigger data-testid="select-loan-purpose">
+                <SelectValue placeholder="Select purpose" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Business expansion">Business expansion</SelectItem>
+                <SelectItem value="Education">Education</SelectItem>
+                <SelectItem value="Agriculture">Agriculture</SelectItem>
+                <SelectItem value="Housing">Housing</SelectItem>
+                <SelectItem value="Medical">Medical expenses</SelectItem>
+                <SelectItem value="Personal">Personal use</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="interestRate">Interest Rate (%)</Label>
+            <Input
+              id="interestRate"
+              type="number"
+              step="0.01"
+              min="5"
+              max="30"
+              value={formData.interestRate}
+              onChange={(e) => setFormData({...formData, interestRate: e.target.value})}
+              data-testid="input-interest-rate"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" type="button" onClick={onClose} disabled={createLoanMutation.isPending} data-testid="button-cancel-create-loan">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createLoanMutation.isPending} data-testid="button-submit-create-loan">
+              {createLoanMutation.isPending ? "Creating..." : "Create Loan"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

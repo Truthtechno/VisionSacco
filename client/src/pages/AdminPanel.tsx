@@ -543,7 +543,7 @@ export default function AdminPanel() {
                       }
                     });
                   } else {
-                    handleCreateUser();
+                    createUserMutation.mutate(formData);
                   }
                 }}
                 disabled={createUserMutation.isPending || updateUserMutation.isPending}
