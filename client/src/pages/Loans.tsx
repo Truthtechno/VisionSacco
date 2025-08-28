@@ -29,6 +29,15 @@ export default function Loans() {
     queryKey: ["/api/loans"],
   });
 
+  // Get current user for approval operations
+  const { data: currentUser } = useQuery({
+    queryKey: ["/api/auth/me"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/auth/me");
+      return response.json();
+    },
+  });
+
   const handleExportLoans = async () => {
     try {
       await exportLoansCSV(loans, "current");
@@ -57,7 +66,7 @@ export default function Loans() {
 
   const approveLoanMutation = useMutation({
     mutationFn: (loanId: string) =>
-      apiRequest("POST", `/api/loans/${loanId}/approve`),
+      apiRequest("POST", `/api/loans/${loanId}/approve`, { approverId: currentUser?.data?.id }),
     onSuccess: () => {
       toast({
         title: "Loan approved",
@@ -65,18 +74,19 @@ export default function Loans() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Approval error:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to approve loan.",
+        description: error?.response?.data?.message || "Failed to approve loan.",
       });
     },
   });
 
   const rejectLoanMutation = useMutation({
     mutationFn: (loanId: string) =>
-      apiRequest("POST", `/api/loans/${loanId}/reject`),
+      apiRequest("POST", `/api/loans/${loanId}/reject`, { approverId: currentUser?.data?.id }),
     onSuccess: () => {
       toast({
         title: "Loan rejected",
@@ -84,11 +94,12 @@ export default function Loans() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Rejection error:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to reject loan.",
+        description: error?.response?.data?.message || "Failed to reject loan.",
       });
     },
   });
@@ -313,6 +324,7 @@ export default function Loans() {
         isOpen={showRecordPaymentModal}
         onClose={() => setShowRecordPaymentModal(false)}
         loan={selectedLoan}
+        currentUserId={currentUser?.data?.id}
       />
     </div>
   );

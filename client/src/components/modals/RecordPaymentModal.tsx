@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 
@@ -37,6 +37,15 @@ export default function RecordPaymentModal({ isOpen, onClose, loan, currentUserI
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get current user for payment processing
+  const { data: currentUser } = useQuery({
+    queryKey: ["/api/auth/me"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/auth/me");
+      return response.json();
+    },
+  });
 
   const {
     register,
@@ -77,7 +86,8 @@ export default function RecordPaymentModal({ isOpen, onClose, loan, currentUserI
   });
 
   const onSubmit = (data: PaymentFormData) => {
-    if (!currentUserId) {
+    const userId = currentUser?.data?.id || currentUserId;
+    if (!userId) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -90,7 +100,7 @@ export default function RecordPaymentModal({ isOpen, onClose, loan, currentUserI
     createRepaymentMutation.mutate({
       ...data,
       loanId: loan.id,
-      processedBy: currentUserId,
+      processedBy: userId,
     }, {
       onSettled: () => setIsSubmitting(false),
     });
