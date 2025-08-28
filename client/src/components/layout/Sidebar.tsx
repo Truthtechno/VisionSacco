@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +46,15 @@ const roleNavigation = {
 
 export default function Sidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
   const [currentRole, setCurrentRole] = useState<keyof typeof roleNavigation>("admin");
+
+  // Update currentRole based on authenticated user
+  useEffect(() => {
+    if (user?.role && user.role in roleNavigation) {
+      setCurrentRole(user.role as keyof typeof roleNavigation);
+    }
+  }, [user]);
 
   const isActive = (href: string) => {
     if (href === "/") {
