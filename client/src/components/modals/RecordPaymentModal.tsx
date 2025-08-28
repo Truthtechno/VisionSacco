@@ -66,21 +66,31 @@ export default function RecordPaymentModal({ isOpen, onClose, loan, currentUserI
       onClose();
       reset();
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Payment recording error:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to record payment. Please try again.",
+        description: error?.response?.data?.message || "Failed to record payment. Please try again.",
       });
     },
   });
 
   const onSubmit = (data: PaymentFormData) => {
+    if (!currentUserId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "User not authenticated. Please login again.",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     createRepaymentMutation.mutate({
       ...data,
       loanId: loan.id,
-      processedBy: currentUserId || "System Admin",
+      processedBy: currentUserId,
     }, {
       onSettled: () => setIsSubmitting(false),
     });

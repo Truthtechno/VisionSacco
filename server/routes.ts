@@ -1,10 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema, insertUserSchema, insertUnfreezeRequestSchema } from "@shared/schema";
+import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema, insertUserSchema, insertUnfreezeRequestSchema, loans } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 // Extend session interface for TypeScript
 declare module 'express-session' {
@@ -324,15 +326,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Find the member corresponding to the user ID
+      console.log("Approve: Looking up approver user by ID:", approverId);
       const approverUser = await storage.getUserById(approverId);
+      console.log("Approve: Found approver user:", approverUser);
       if (!approverUser) {
+        console.error("Approve: Approver user not found for ID:", approverId);
         return res.status(400).json({ message: "Approver user not found" });
       }
       
       // Find member with matching email
       const members = await storage.getMembers();
+      console.log("Approve: All members:", members.map(m => ({ id: m.id, email: m.email, role: m.role })));
       const approverMember = members.find(m => m.email === approverUser.email);
+      console.log("Approve: Found matching approver member:", approverMember);
       if (!approverMember) {
+        console.error("Approve: Approver member record not found for user email:", approverUser.email);
         return res.status(400).json({ message: "Approver member record not found" });
       }
       
@@ -368,15 +376,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Find the member corresponding to the user ID
+      console.log("Reject: Looking up approver user by ID:", approverId);
       const approverUser = await storage.getUserById(approverId);
+      console.log("Reject: Found approver user:", approverUser);
       if (!approverUser) {
+        console.error("Reject: Approver user not found for ID:", approverId);
         return res.status(400).json({ message: "Approver user not found" });
       }
       
       // Find member with matching email
       const members = await storage.getMembers();
+      console.log("Reject: All members:", members.map(m => ({ id: m.id, email: m.email, role: m.role })));
       const approverMember = members.find(m => m.email === approverUser.email);
+      console.log("Reject: Found matching approver member:", approverMember);
       if (!approverMember) {
+        console.error("Reject: Approver member record not found for user email:", approverUser.email);
         return res.status(400).json({ message: "Approver member record not found" });
       }
       
@@ -464,14 +478,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find member corresponding to processedBy if it's a user ID
       let processedByMemberId = req.body.processedBy;
       if (req.body.processedBy && req.body.processedBy.length > 10) { // Likely a UUID
+        console.log("Looking up user by ID:", req.body.processedBy);
         const processorUser = await storage.getUserById(req.body.processedBy);
+        console.log("Found user:", processorUser);
         if (processorUser) {
           const members = await storage.getMembers();
           const processorMember = members.find(m => m.email === processorUser.email);
+          console.log("Found matching member:", processorMember);
           if (processorMember) {
             processedByMemberId = processorMember.id;
+          } else {
+            console.error("No member found for user email:", processorUser.email);
+            return res.status(400).json({ message: "Member record not found for user" });
           }
+        } else {
+          console.error("User not found for ID:", req.body.processedBy);
+          return res.status(400).json({ message: "User not found" });
         }
+      } else {
+        console.error("Invalid processedBy value:", req.body.processedBy);
+        return res.status(400).json({ message: "Invalid processor ID" });
       }
       
       const validatedData = insertRepaymentSchema.parse({
@@ -482,14 +508,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Validated repayment data:", validatedData);
       const repayment = await storage.createRepayment(validatedData);
       
-      // Update loan balance
+      // Update loan balance in the database directly (since we can't update balance field via storage)
       const loan = await storage.getLoan(validatedData.loanId);
       if (loan) {
         const newBalance = Math.max(0, parseFloat(loan.balance) - parseFloat(validatedData.amount));
         const status = newBalance === 0 ? "paid" : loan.status;
+        
+        // Update the loan balance and status
         await storage.updateLoan(loan.id, { 
-          status
+          balance: newBalance.toString(),
+          status 
         });
+        
+        console.log(`Updated loan ${loan.id} balance from ${loan.balance} to ${newBalance}, status: ${status}`);
       }
       
       res.status(201).json(repayment);

@@ -218,7 +218,7 @@ export class DatabaseStorage implements IStorage {
     return newLoan;
   }
 
-  async updateLoan(id: string, updates: Partial<InsertLoan>): Promise<Loan> {
+  async updateLoan(id: string, updates: Partial<InsertLoan & { balance?: string }>): Promise<Loan> {
     const [updatedLoan] = await db
       .update(loans)
       .set(updates)
