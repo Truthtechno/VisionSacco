@@ -54,10 +54,7 @@ export default function RecordPaymentModal({ isOpen, onClose, loan, currentUserI
 
   const createRepaymentMutation = useMutation({
     mutationFn: (data: PaymentFormData & { loanId: string; processedBy: string }) =>
-      apiRequest("/api/repayments", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      apiRequest("POST", "/api/repayments", data),
     onSuccess: () => {
       toast({
         title: "Payment recorded successfully",
@@ -161,7 +158,7 @@ export default function RecordPaymentModal({ isOpen, onClose, loan, currentUserI
             {paymentAmount > 0 && (
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h4 className="font-medium text-blue-900 mb-2">Payment Summary</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-blue-700">Payment Amount:</span>
                     <span className="ml-2 font-medium">UGX {paymentAmount.toLocaleString()}</span>

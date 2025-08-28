@@ -134,6 +134,30 @@
   @apply max-w-[95vw] w-full mx-auto;
 }
 
+/* Responsive table improvements */
+.responsive-table {
+  @apply min-w-full table-auto;
+}
+
+.responsive-table th,
+.responsive-table td {
+  @apply text-sm break-words max-w-[150px] sm:max-w-none;
+}
+
+/* Responsive tabs and content */
+.responsive-tabs {
+  @apply overflow-x-auto;
+}
+
+.responsive-tabs .tab-list {
+  @apply flex-nowrap min-w-max;
+}
+
+/* Text truncation utilities */
+.text-truncate-mobile {
+  @apply truncate sm:whitespace-normal;
+}
+
 /* Custom SACCO styles */
 .sacco-primary {
   background-color: var(--primary-600);

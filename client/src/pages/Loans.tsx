@@ -170,7 +170,7 @@ export default function Loans() {
 
         {/* Search */}
         <div className="mb-6">
-          <div className="relative max-w-md">
+          <div className="relative max-w-md w-full sm:max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
@@ -229,7 +229,7 @@ export default function Loans() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex space-x-2 pt-2">
+                <div className="flex flex-wrap gap-2 pt-2">
                   <Button
                     variant="outline"
                     size="sm"

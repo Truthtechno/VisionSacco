@@ -323,8 +323,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Approver ID is required" });
       }
       
-      console.log("Approving loan:", req.params.id, "by approver:", approverId);
-      const loan = await storage.approveLoan(req.params.id, approverId);
+      // Find the member corresponding to the user ID
+      const approverUser = await storage.getUserById(approverId);
+      if (!approverUser) {
+        return res.status(400).json({ message: "Approver user not found" });
+      }
+      
+      // Find member with matching email
+      const members = await storage.getMembers();
+      const approverMember = members.find(m => m.email === approverUser.email);
+      if (!approverMember) {
+        return res.status(400).json({ message: "Approver member record not found" });
+      }
+      
+      console.log("Approving loan:", req.params.id, "by user:", approverId, "member:", approverMember.id);
+      const loan = await storage.approveLoan(req.params.id, approverMember.id);
       console.log("Loan approved:", loan);
       
       // Create disbursement transaction if approved
@@ -334,7 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "loan_disbursement",
         amount: loan.principal,
         description: `Loan Disbursement - ${loan.loanNumber}`,
-        processedBy: approverId,
+        processedBy: approverMember.id,
       });
 
       res.json(loan);
@@ -354,13 +367,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Approver ID is required" });
       }
       
-      const loan = await storage.rejectLoan(req.params.id, approverId);
+      // Find the member corresponding to the user ID
+      const approverUser = await storage.getUserById(approverId);
+      if (!approverUser) {
+        return res.status(400).json({ message: "Approver user not found" });
+      }
+      
+      // Find member with matching email
+      const members = await storage.getMembers();
+      const approverMember = members.find(m => m.email === approverUser.email);
+      if (!approverMember) {
+        return res.status(400).json({ message: "Approver member record not found" });
+      }
+      
+      console.log("Rejecting loan:", req.params.id, "by user:", approverId, "member:", approverMember.id);
+      const loan = await storage.rejectLoan(req.params.id, approverMember.id);
       res.json(loan);
     } catch (error) {
+      console.error("Error rejecting loan:", error);
       if (error instanceof Error && error.message === "Loan not found") {
         return res.status(404).json({ message: "Loan not found" });
       }
-      res.status(500).json({ message: "Failed to reject loan" });
+      res.status(500).json({ message: "Failed to reject loan", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -431,14 +459,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/repayments", async (req, res) => {
     try {
-      const validatedData = insertRepaymentSchema.parse(req.body);
+      console.log("Creating repayment with data:", req.body);
+      
+      // Find member corresponding to processedBy if it's a user ID
+      let processedByMemberId = req.body.processedBy;
+      if (req.body.processedBy && req.body.processedBy.length > 10) { // Likely a UUID
+        const processorUser = await storage.getUserById(req.body.processedBy);
+        if (processorUser) {
+          const members = await storage.getMembers();
+          const processorMember = members.find(m => m.email === processorUser.email);
+          if (processorMember) {
+            processedByMemberId = processorMember.id;
+          }
+        }
+      }
+      
+      const validatedData = insertRepaymentSchema.parse({
+        ...req.body,
+        processedBy: processedByMemberId
+      });
+      
+      console.log("Validated repayment data:", validatedData);
       const repayment = await storage.createRepayment(validatedData);
+      
+      // Update loan balance
+      const loan = await storage.getLoan(validatedData.loanId);
+      if (loan) {
+        const newBalance = Math.max(0, parseFloat(loan.balance) - parseFloat(validatedData.amount));
+        const status = newBalance === 0 ? "paid" : loan.status;
+        await storage.updateLoan(loan.id, { 
+          status
+        });
+      }
+      
       res.status(201).json(repayment);
     } catch (error) {
+      console.error("Error creating repayment:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid input", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to process repayment" });
+      res.status(500).json({ message: "Failed to process repayment", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 

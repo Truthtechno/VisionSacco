@@ -236,8 +236,8 @@ export default function AdminPanel() {
       </div>
 
       {/* Main Admin Tabs */}
-      <Tabs defaultValue="users" className="space-y-4">
-        <TabsList data-testid="tabs-list">
+      <Tabs defaultValue="users" className="space-y-4 responsive-tabs">
+        <TabsList className="overflow-x-auto flex-nowrap min-w-max" data-testid="tabs-list">
           <TabsTrigger value="users" data-testid="tab-users">User Management</TabsTrigger>
           <TabsTrigger value="status" data-testid="tab-status">Member Status</TabsTrigger>
           <TabsTrigger value="unfreeze" data-testid="tab-unfreeze">
