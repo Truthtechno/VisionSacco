@@ -8,18 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
-import CreateDepositModal from "../components/modals/CreateDepositModal";
-import DepositDetailsModal from "../components/modals/DepositDetailsModal";
+import CreateSavingModal from "../components/modals/CreateSavingModal";
+import SavingDetailsModal from "../components/modals/SavingDetailsModal";
 import { type DepositWithDetails } from "@shared/schema";
 
-export default function Deposits() {
+export default function Savings() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [showCreateDepositModal, setShowCreateDepositModal] = useState(false);
-  const [showDepositDetailsModal, setShowDepositDetailsModal] = useState(false);
-  const [selectedDeposit, setSelectedDeposit] = useState<DepositWithDetails | null>(null);
+  const [showCreateSavingModal, setShowCreateSavingModal] = useState(false);
+  const [showSavingDetailsModal, setShowSavingDetailsModal] = useState(false);
+  const [selectedSaving, setSelectedSaving] = useState<DepositWithDetails | null>(null);
   const { toast } = useToast();
 
-  const { data: deposits = [], isLoading } = useQuery<DepositWithDetails[]>({
+  const { data: savings = [], isLoading } = useQuery<DepositWithDetails[]>({
     queryKey: ["/api/deposits"],
   });
 
@@ -32,18 +32,18 @@ export default function Deposits() {
     },
   });
 
-  // Approve deposit mutation
-  const approveDepositMutation = useMutation({
-    mutationFn: async (depositId: string) => {
-      const response = await apiRequest("POST", `/api/deposits/${depositId}/approve`, {
+  // Approve saving mutation
+  const approveSavingMutation = useMutation({
+    mutationFn: async (savingId: string) => {
+      const response = await apiRequest("POST", `/api/deposits/${savingId}/approve`, {
         approverId: currentUser?.data?.id,
       });
       return response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Deposit approved",
-        description: "The deposit has been approved successfully.",
+        title: "Saving approved",
+        description: "The saving has been approved successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/deposits"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -52,23 +52,23 @@ export default function Deposits() {
       toast({
         variant: "destructive",
         title: "Approval failed",
-        description: error?.response?.data?.message || "Failed to approve deposit. Please try again.",
+        description: error?.response?.data?.message || "Failed to approve saving. Please try again.",
       });
     },
   });
 
-  // Reject deposit mutation
-  const rejectDepositMutation = useMutation({
-    mutationFn: async (depositId: string) => {
-      const response = await apiRequest("POST", `/api/deposits/${depositId}/reject`, {
+  // Reject saving mutation
+  const rejectSavingMutation = useMutation({
+    mutationFn: async (savingId: string) => {
+      const response = await apiRequest("POST", `/api/deposits/${savingId}/reject`, {
         approverId: currentUser?.data?.id,
       });
       return response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Deposit rejected",
-        description: "The deposit has been rejected.",
+        title: "Saving rejected",
+        description: "The saving has been rejected.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/deposits"] });
     },
@@ -76,38 +76,38 @@ export default function Deposits() {
       toast({
         variant: "destructive",
         title: "Rejection failed",
-        description: error?.response?.data?.message || "Failed to reject deposit. Please try again.",
+        description: error?.response?.data?.message || "Failed to reject saving. Please try again.",
       });
     },
   });
 
-  const handleApproveDeposit = (deposit: DepositWithDetails) => {
-    if (deposit.status !== "pending") {
+  const handleApproveSaving = (saving: DepositWithDetails) => {
+    if (saving.status !== "pending") {
       toast({
         variant: "destructive",
         title: "Cannot approve",
-        description: "Only pending deposits can be approved.",
+        description: "Only pending savings can be approved.",
       });
       return;
     }
-    approveDepositMutation.mutate(deposit.id);
+    approveSavingMutation.mutate(saving.id);
   };
 
-  const handleRejectDeposit = (deposit: DepositWithDetails) => {
-    if (deposit.status !== "pending") {
+  const handleRejectSaving = (saving: DepositWithDetails) => {
+    if (saving.status !== "pending") {
       toast({
         variant: "destructive",
         title: "Cannot reject",
-        description: "Only pending deposits can be rejected.",
+        description: "Only pending savings can be rejected.",
       });
       return;
     }
-    rejectDepositMutation.mutate(deposit.id);
+    rejectSavingMutation.mutate(saving.id);
   };
 
-  const handleViewDetails = (deposit: DepositWithDetails) => {
-    setSelectedDeposit(deposit);
-    setShowDepositDetailsModal(true);
+  const handleViewDetails = (saving: DepositWithDetails) => {
+    setSelectedSaving(saving);
+    setShowSavingDetailsModal(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -141,17 +141,17 @@ export default function Deposits() {
     });
   };
 
-  const filteredDeposits = deposits.filter(deposit =>
-    deposit.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    deposit.memberNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    deposit.depositNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    deposit.depositMethod.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredSavings = savings.filter(saving =>
+    saving.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    saving.memberNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    saving.depositNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    saving.depositMethod.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const pendingDeposits = deposits.filter(d => d.status === "pending");
-  const approvedDeposits = deposits.filter(d => d.status === "approved");
-  const rejectedDeposits = deposits.filter(d => d.status === "rejected");
-  const totalDepositAmount = approvedDeposits.reduce((sum, d) => sum + parseFloat(d.amount), 0);
+  const pendingSavings = savings.filter(d => d.status === "pending");
+  const approvedSavings = savings.filter(d => d.status === "approved");
+  const rejectedSavings = savings.filter(d => d.status === "rejected");
+  const totalSavingAmount = approvedSavings.reduce((sum, d) => sum + parseFloat(d.amount), 0);
 
   if (isLoading) {
     return (
@@ -166,16 +166,16 @@ export default function Deposits() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Deposits Management</h1>
-          <p className="text-gray-600 mt-1">Track and manage member deposits</p>
+          <h1 className="text-3xl font-bold text-gray-900">Savings Management</h1>
+          <p className="text-gray-600 mt-1">Track and manage member savings</p>
         </div>
         <Button 
-          onClick={() => setShowCreateDepositModal(true)}
+          onClick={() => setShowCreateSavingModal(true)}
           className="bg-emerald-600 hover:bg-emerald-700"
-          data-testid="button-create-deposit"
+          data-testid="button-create-saving"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Record Deposit
+          Record Saving
         </Button>
       </div>
 
@@ -183,12 +183,12 @@ export default function Deposits() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deposits</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Savings</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{deposits.length}</div>
-            <p className="text-xs text-muted-foreground">All time deposits</p>
+            <div className="text-2xl font-bold">{savings.length}</div>
+            <p className="text-xs text-muted-foreground">All time savings</p>
           </CardContent>
         </Card>
         
@@ -198,18 +198,18 @@ export default function Deposits() {
             <Eye className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{pendingDeposits.length}</div>
+            <div className="text-2xl font-bold text-yellow-600">{pendingSavings.length}</div>
             <p className="text-xs text-muted-foreground">Awaiting review</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved Deposits</CardTitle>
+            <CardTitle className="text-sm font-medium">Approved Savings</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{approvedDeposits.length}</div>
+            <div className="text-2xl font-bold text-green-600">{approvedSavings.length}</div>
             <p className="text-xs text-muted-foreground">Successfully processed</p>
           </CardContent>
         </Card>
@@ -220,8 +220,8 @@ export default function Deposits() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">{formatCurrency(totalDepositAmount.toString())}</div>
-            <p className="text-xs text-muted-foreground">Approved deposits</p>
+            <div className="text-2xl font-bold text-emerald-600">{formatCurrency(totalSavingAmount.toString())}</div>
+            <p className="text-xs text-muted-foreground">Approved savings</p>
           </CardContent>
         </Card>
       </div>
@@ -231,23 +231,23 @@ export default function Deposits() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search by member name, number, deposit number, or method..."
+            placeholder="Search by member name, number, saving number, or method..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
-            data-testid="input-search-deposits"
+            data-testid="input-search-savings"
           />
         </div>
       </div>
 
-      {/* Deposits Table */}
+      {/* Savings Table */}
       <div className="bg-white rounded-lg border">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Deposit Details
+                  Saving Details
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Member
@@ -270,61 +270,61 @@ export default function Deposits() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredDeposits.map((deposit) => (
-                <tr key={deposit.id} className="hover:bg-gray-50">
+              {filteredSavings.map((saving) => (
+                <tr key={saving.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{deposit.depositNumber}</div>
-                      <div className="text-sm text-gray-500">Recorded by: {deposit.recordedByName}</div>
+                      <div className="text-sm font-medium text-gray-900">{saving.depositNumber}</div>
+                      <div className="text-sm text-gray-500">Recorded by: {saving.recordedByName}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{deposit.memberName}</div>
-                      <div className="text-sm text-gray-500">{deposit.memberNumber}</div>
+                      <div className="text-sm font-medium text-gray-900">{saving.memberName}</div>
+                      <div className="text-sm text-gray-500">{saving.memberNumber}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{formatCurrency(deposit.amount)}</div>
+                    <div className="text-sm font-medium text-gray-900">{formatCurrency(saving.amount)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 capitalize">{deposit.depositMethod.replace('_', ' ')}</div>
+                    <div className="text-sm text-gray-900 capitalize">{saving.depositMethod.replace('_', ' ')}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(deposit.status)}
+                    {getStatusBadge(saving.status)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(deposit.createdAt)}
+                    {formatDate(saving.createdAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="flex justify-center space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewDetails(deposit)}
-                        data-testid={`button-view-deposit-${deposit.id}`}
+                        onClick={() => handleViewDetails(saving)}
+                        data-testid={`button-view-saving-${saving.id}`}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {deposit.status === "pending" && (
+                      {saving.status === "pending" && (
                         <>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleApproveDeposit(deposit)}
+                            onClick={() => handleApproveSaving(saving)}
                             className="text-green-600 hover:text-green-700 border-green-300 hover:border-green-400"
-                            disabled={approveDepositMutation.isPending}
-                            data-testid={`button-approve-deposit-${deposit.id}`}
+                            disabled={approveSavingMutation.isPending}
+                            data-testid={`button-approve-saving-${saving.id}`}
                           >
                             <CheckCircle className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleRejectDeposit(deposit)}
+                            onClick={() => handleRejectSaving(saving)}
                             className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
-                            disabled={rejectDepositMutation.isPending}
-                            data-testid={`button-reject-deposit-${deposit.id}`}
+                            disabled={rejectSavingMutation.isPending}
+                            data-testid={`button-reject-saving-${saving.id}`}
                           >
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -338,19 +338,19 @@ export default function Deposits() {
           </table>
         </div>
 
-        {filteredDeposits.length === 0 && (
-          <div className="text-center py-12" data-testid="no-deposits-found">
+        {filteredSavings.length === 0 && (
+          <div className="text-center py-12" data-testid="no-savings-found">
             <p className="text-gray-500 text-lg">
-              {searchTerm ? "No deposits found matching your search." : "No deposits recorded yet."}
+              {searchTerm ? "No savings found matching your search." : "No savings recorded yet."}
             </p>
             {!searchTerm && (
               <Button
                 className="mt-4"
-                onClick={() => setShowCreateDepositModal(true)}
-                data-testid="button-create-first-deposit"
+                onClick={() => setShowCreateSavingModal(true)}
+                data-testid="button-create-first-saving"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Record Your First Deposit
+                Record Your First Saving
               </Button>
             )}
           </div>
@@ -358,14 +358,14 @@ export default function Deposits() {
       </div>
 
       {/* Modals */}
-      <CreateDepositModal
-        isOpen={showCreateDepositModal}
-        onClose={() => setShowCreateDepositModal(false)}
+      <CreateSavingModal
+        isOpen={showCreateSavingModal}
+        onClose={() => setShowCreateSavingModal(false)}
       />
-      <DepositDetailsModal
-        isOpen={showDepositDetailsModal}
-        onClose={() => setShowDepositDetailsModal(false)}
-        deposit={selectedDeposit}
+      <SavingDetailsModal
+        isOpen={showSavingDetailsModal}
+        onClose={() => setShowSavingDetailsModal(false)}
+        saving={selectedSaving}
       />
     </div>
   );

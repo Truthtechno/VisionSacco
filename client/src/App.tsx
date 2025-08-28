@@ -7,7 +7,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import Members from "@/pages/Members";
 import Loans from "@/pages/Loans";
-import Deposits from "@/pages/Deposits";
+import Savings from "@/pages/Savings";
 import Reports from "@/pages/Reports";
 import Admin from "@/pages/Admin";
 import MemberPortal from "@/pages/MemberPortal";
@@ -69,7 +69,7 @@ function Router() {
             <Route path="/admin" component={Admin} />
             <Route path="/members" component={Members} />
             <Route path="/loans" component={Loans} />
-            <Route path="/deposits" component={Deposits} />
+            <Route path="/savings" component={Savings} />
             <Route path="/reports" component={Reports} />
           </>
         )}
@@ -84,7 +84,7 @@ function Router() {
             <Route path="/manager" component={ManagerDashboard} />
             <Route path="/members" component={Members} />
             <Route path="/loans" component={Loans} />
-            <Route path="/deposits" component={Deposits} />
+            <Route path="/savings" component={Savings} />
             <Route path="/reports" component={Reports} />
           </>
         )}

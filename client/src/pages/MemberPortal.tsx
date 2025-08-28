@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Loan, Transaction, Savings } from "@shared/schema";
+import type { Loan, Transaction, Savings, DepositWithDetails } from "@shared/schema";
 import { RequestUnfreezeModal } from "@/components/modals/RequestUnfreezeModal";
 
 export default function MemberPortal() {
@@ -46,9 +46,15 @@ export default function MemberPortal() {
     enabled: !!memberRecord?.id,
   });
 
+  // Fetch member savings deposits
+  const { data: allSavingsDeposits = [], isLoading: savingsDepositsLoading } = useQuery<DepositWithDetails[]>({
+    queryKey: ['/api/deposits'],
+  });
+
   // Filter data for current member (safe with fallbacks)
   const memberLoans = memberRecord ? allLoans.filter(loan => loan.memberId === memberRecord.id) : [];
   const memberTransactions = memberRecord ? allTransactions.filter(transaction => transaction.memberId === memberRecord.id) : [];
+  const memberSavingsDeposits = memberRecord ? allSavingsDeposits.filter(deposit => deposit.memberId === memberRecord.id) : [];
 
   // Demo data for member if no real data exists
   const demoSavingsBalance = savings?.balance || "150000.00";
@@ -272,6 +278,7 @@ export default function MemberPortal() {
       <Tabs defaultValue="loans" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3" data-testid="tabs-list">
           <TabsTrigger value="loans" data-testid="tab-loans">My Loans</TabsTrigger>
+          <TabsTrigger value="savings" data-testid="tab-savings">My Savings</TabsTrigger>
           <TabsTrigger value="transactions" data-testid="tab-transactions">Transactions</TabsTrigger>
           <TabsTrigger value="profile" data-testid="tab-profile">My Profile</TabsTrigger>
         </TabsList>
@@ -330,6 +337,67 @@ export default function MemberPortal() {
                           {loan.dueDate && (
                             <p className="text-xs text-gray-500">
                               Due: {formatDate(loan.dueDate)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="savings" className="space-y-4">
+          <Card data-testid="card-member-savings">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                My Savings History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {savingsDepositsLoading ? (
+                <div className="text-center py-8" data-testid="loading-savings">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600 mx-auto mb-2"></div>
+                  Loading savings...
+                </div>
+              ) : memberSavingsDeposits.length === 0 ? (
+                <div className="text-center py-8 text-gray-500" data-testid="no-savings">
+                  <DollarSign className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  No savings records found
+                  <p className="text-sm">Your savings deposits will appear here once recorded.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {memberSavingsDeposits.map((saving) => (
+                    <div key={saving.id} className="border rounded-lg p-4" data-testid={`saving-item-${saving.id}`}>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                            <h3 className="font-semibold" data-testid={`text-saving-number-${saving.id}`}>
+                              {saving.depositNumber}
+                            </h3>
+                            {getStatusBadge(saving.status)}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-1">
+                            Method: {saving.depositMethod.replace('_', ' ')}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Recorded: {formatDate(saving.createdAt)}
+                          </p>
+                          {saving.notes && (
+                            <p className="text-xs text-gray-500 mt-1">{saving.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-semibold text-emerald-600" data-testid={`text-saving-amount-${saving.id}`}>
+                            {formatCurrency(saving.amount)}
+                          </p>
+                          {saving.approvedAt && (
+                            <p className="text-xs text-gray-500">
+                              {saving.status === 'approved' ? 'Approved' : 'Rejected'}: {formatDate(saving.approvedAt)}
                             </p>
                           )}
                         </div>

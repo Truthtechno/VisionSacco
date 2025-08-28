@@ -27,7 +27,7 @@ const roleNavigation = {
     { name: "Dashboard", href: "/", icon: LayoutDashboard, testId: "nav-dashboard" },
     { name: "Members", href: "/members", icon: Users, testId: "nav-members" },
     { name: "Loans", href: "/loans", icon: Banknote, testId: "nav-loans" },
-    { name: "Deposits", href: "/deposits", icon: PiggyBank, testId: "nav-deposits" },
+    { name: "Savings", href: "/savings", icon: PiggyBank, testId: "nav-savings" },
     { name: "Reports", href: "/reports", icon: BarChart3, testId: "nav-reports" },
   ],
   admin: [
@@ -37,7 +37,7 @@ const roleNavigation = {
     { name: "Member Portal", href: "/member-portal", icon: User, testId: "nav-member-portal" },
     { name: "Members", href: "/members", icon: Users, testId: "nav-members" },
     { name: "Loans", href: "/loans", icon: Banknote, testId: "nav-loans" },
-    { name: "Deposits", href: "/deposits", icon: PiggyBank, testId: "nav-deposits" },
+    { name: "Savings", href: "/savings", icon: PiggyBank, testId: "nav-savings" },
     { name: "Reports", href: "/reports", icon: BarChart3, testId: "nav-reports" },
     { name: "Admin", href: "/admin", icon: Settings, testId: "nav-admin" },
   ],
