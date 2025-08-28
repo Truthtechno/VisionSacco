@@ -294,7 +294,7 @@ export default function Savings() {
                     {getStatusBadge(saving.status)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(saving.createdAt)}
+                    {formatDate(saving.createdAt.toString())}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="flex justify-center space-x-2">
