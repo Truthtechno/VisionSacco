@@ -6,6 +6,7 @@ import {
   transactions,
   savings,
   repayments,
+  deposits,
   unfreezeRequests,
   type User,
   type InsertUser,
@@ -19,12 +20,15 @@ import {
   type InsertSavings,
   type Repayment,
   type InsertRepayment,
+  type Deposit,
+  type InsertDeposit,
   type UnfreezeRequest,
   type InsertUnfreezeRequest,
   type MemberWithSavings,
   type LoanWithMember,
   type TransactionWithDetails,
   type RepaymentWithDetails,
+  type DepositWithDetails,
   type UnfreezeRequestWithDetails,
   type DashboardStats
 } from "@shared/schema";
@@ -427,6 +431,152 @@ export class DatabaseStorage implements IStorage {
       .values(repayment)
       .returning();
     return newRepayment;
+  }
+
+  // Deposits
+  async getDeposits(): Promise<DepositWithDetails[]> {
+    const allDeposits = await db
+      .select()
+      .from(deposits)
+      .orderBy(desc(deposits.createdAt));
+
+    const result: DepositWithDetails[] = [];
+    for (const deposit of allDeposits) {
+      // Get member information
+      const member = await this.getMember(deposit.memberId);
+      const memberName = member ? `${member.firstName} ${member.lastName}` : "Unknown";
+      const memberNumber = member?.memberNumber || "Unknown";
+
+      // Get recorder information
+      const recorder = await this.getMember(deposit.recordedBy);
+      const recordedByName = recorder ? `${recorder.firstName} ${recorder.lastName}` : "Unknown";
+
+      // Get approver information if approved
+      let approvedByName = undefined;
+      if (deposit.approvedBy) {
+        const approver = await this.getMember(deposit.approvedBy);
+        approvedByName = approver ? `${approver.firstName} ${approver.lastName}` : "Unknown";
+      }
+
+      result.push({
+        ...deposit,
+        memberName,
+        memberNumber,
+        recordedByName,
+        approvedByName
+      });
+    }
+
+    return result;
+  }
+
+  async getDeposit(id: string): Promise<Deposit | undefined> {
+    const [deposit] = await db
+      .select()
+      .from(deposits)
+      .where(eq(deposits.id, id))
+      .limit(1);
+    return deposit;
+  }
+
+  async getDepositsByMember(memberId: string): Promise<Deposit[]> {
+    return await db
+      .select()
+      .from(deposits)
+      .where(eq(deposits.memberId, memberId))
+      .orderBy(desc(deposits.createdAt));
+  }
+
+  async getDepositsByStatus(status: string): Promise<DepositWithDetails[]> {
+    const statusDeposits = await db
+      .select()
+      .from(deposits)
+      .where(eq(deposits.status, status))
+      .orderBy(desc(deposits.createdAt));
+
+    const result: DepositWithDetails[] = [];
+    for (const deposit of statusDeposits) {
+      // Get member information
+      const member = await this.getMember(deposit.memberId);
+      const memberName = member ? `${member.firstName} ${member.lastName}` : "Unknown";
+      const memberNumber = member?.memberNumber || "Unknown";
+
+      // Get recorder information
+      const recorder = await this.getMember(deposit.recordedBy);
+      const recordedByName = recorder ? `${recorder.firstName} ${recorder.lastName}` : "Unknown";
+
+      // Get approver information if approved
+      let approvedByName = undefined;
+      if (deposit.approvedBy) {
+        const approver = await this.getMember(deposit.approvedBy);
+        approvedByName = approver ? `${approver.firstName} ${approver.lastName}` : "Unknown";
+      }
+
+      result.push({
+        ...deposit,
+        memberName,
+        memberNumber,
+        recordedByName,
+        approvedByName
+      });
+    }
+
+    return result;
+  }
+
+  async createDeposit(deposit: InsertDeposit): Promise<Deposit> {
+    const [newDeposit] = await db
+      .insert(deposits)
+      .values(deposit)
+      .returning();
+    return newDeposit;
+  }
+
+  async approveDeposit(id: string, approverId: string): Promise<Deposit> {
+    const [updatedDeposit] = await db
+      .update(deposits)
+      .set({
+        status: "approved",
+        approvedBy: approverId,
+        approvedAt: new Date()
+      })
+      .where(eq(deposits.id, id))
+      .returning();
+    
+    if (!updatedDeposit) {
+      throw new Error("Deposit not found");
+    }
+
+    // Update member's savings balance when deposit is approved
+    const currentSavings = await this.getSavings(updatedDeposit.memberId);
+    const currentBalance = parseFloat(currentSavings?.balance || "0");
+    const depositAmount = parseFloat(updatedDeposit.amount);
+    const newBalance = (currentBalance + depositAmount).toString();
+
+    await this.createOrUpdateSavings({
+      memberId: updatedDeposit.memberId,
+      balance: newBalance
+    });
+
+    return updatedDeposit;
+  }
+
+  async rejectDeposit(id: string, approverId: string): Promise<Deposit> {
+    const [updatedDeposit] = await db
+      .update(deposits)
+      .set({
+        status: "rejected",
+        approvedBy: approverId,
+        approvedAt: new Date()
+      })
+      .where(eq(deposits.id, id))
+      .returning();
+    
+    if (!updatedDeposit) {
+      throw new Error("Deposit not found");
+    }
+    
+    return updatedDeposit;
   }
 
   // Unfreeze Requests

@@ -73,6 +73,21 @@ export const repayments = pgTable("repayments", {
   notes: text("notes"),
 });
 
+export const deposits = pgTable("deposits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  memberId: varchar("member_id").references(() => members.id).notNull(),
+  depositNumber: text("deposit_number").notNull().unique(),
+  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  depositMethod: text("deposit_method").notNull(), // cash, bank_transfer, mobile_money
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  recordedBy: varchar("recorded_by").references(() => members.id).notNull(),
+  approvedBy: varchar("approved_by").references(() => members.id),
+  approvedAt: timestamp("approved_at"),
+  depositDate: timestamp("deposit_date").defaultNow().notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Unfreeze requests table for deactivated members
 export const unfreezeRequests = pgTable("unfreeze_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -133,6 +148,12 @@ export const insertRepaymentSchema = createInsertSchema(repayments).omit({
   paymentDate: true,
 });
 
+export const insertDepositSchema = createInsertSchema(deposits).omit({
+  id: true,
+  createdAt: true,
+  depositDate: true,
+});
+
 export const insertUnfreezeRequestSchema = createInsertSchema(unfreezeRequests).omit({
   id: true,
   requestedAt: true,
@@ -153,12 +174,15 @@ export type UnfreezeRequest = typeof unfreezeRequests.$inferSelect;
 export type InsertUnfreezeRequest = z.infer<typeof insertUnfreezeRequestSchema>;
 export type InsertRepayment = z.infer<typeof insertRepaymentSchema>;
 export type Repayment = typeof repayments.$inferSelect;
+export type InsertDeposit = z.infer<typeof insertDepositSchema>;
+export type Deposit = typeof deposits.$inferSelect;
 
 // Derived types for API responses
 export type MemberWithSavings = Member & { savingsBalance: string };
 export type LoanWithMember = Loan & { memberName: string; approverName?: string };
 export type TransactionWithDetails = Transaction & { memberName?: string };
 export type RepaymentWithDetails = Repayment & { loanNumber: string; memberName: string; processorName: string };
+export type DepositWithDetails = Deposit & { memberName: string; memberNumber: string; recordedByName: string; approvedByName?: string };
 export type UnfreezeRequestWithDetails = UnfreezeRequest & { memberName: string; memberNumber: string; processorName?: string };
 
 export type DashboardStats = {

@@ -11,12 +11,15 @@ import {
   type InsertSavings,
   type Repayment,
   type InsertRepayment,
+  type Deposit,
+  type InsertDeposit,
   type UnfreezeRequest,
   type InsertUnfreezeRequest,
   type MemberWithSavings,
   type LoanWithMember,
   type TransactionWithDetails,
   type RepaymentWithDetails,
+  type DepositWithDetails,
   type UnfreezeRequestWithDetails,
   type DashboardStats
 } from "@shared/schema";
@@ -62,6 +65,15 @@ export interface IStorage {
   getRepaymentsByLoan(loanId: string): Promise<RepaymentWithDetails[]>;
   createRepayment(repayment: InsertRepayment): Promise<Repayment>;
 
+  // Deposits
+  getDeposits(): Promise<DepositWithDetails[]>;
+  getDeposit(id: string): Promise<Deposit | undefined>;
+  getDepositsByMember(memberId: string): Promise<Deposit[]>;
+  getDepositsByStatus(status: string): Promise<DepositWithDetails[]>;
+  createDeposit(deposit: InsertDeposit): Promise<Deposit>;
+  approveDeposit(id: string, approverId: string): Promise<Deposit>;
+  rejectDeposit(id: string, approverId: string): Promise<Deposit>;
+
   // Unfreeze Requests
   getUnfreezeRequests(): Promise<UnfreezeRequestWithDetails[]>;
   getPendingUnfreezeRequests(): Promise<UnfreezeRequestWithDetails[]>;
@@ -83,6 +95,7 @@ export class MemStorage implements IStorage {
   private transactions: Map<string, Transaction>;
   private savings: Map<string, Savings>;
   private repayments: Map<string, Repayment>;
+  private deposits: Map<string, Deposit>;
 
   constructor() {
     this.users = new Map();
@@ -91,6 +104,7 @@ export class MemStorage implements IStorage {
     this.transactions = new Map();
     this.savings = new Map();
     this.repayments = new Map();
+    this.deposits = new Map();
     
     // Initialize with some sample data for demonstration
     this.initializeSampleData();

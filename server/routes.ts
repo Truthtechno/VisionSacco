@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema, insertUserSchema, insertUnfreezeRequestSchema, loans } from "@shared/schema";
+import { insertMemberSchema, insertLoanSchema, insertTransactionSchema, insertRepaymentSchema, insertDepositSchema, insertUserSchema, insertUnfreezeRequestSchema, loans } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
@@ -530,6 +530,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid input", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to process repayment", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Deposits routes
+  app.get("/api/deposits", async (req, res) => {
+    try {
+      const status = req.query.status as string;
+      const deposits = status ? 
+        await storage.getDepositsByStatus(status) : 
+        await storage.getDeposits();
+      res.json(deposits);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch deposits" });
+    }
+  });
+
+  app.get("/api/deposits/:id", async (req, res) => {
+    try {
+      const deposit = await storage.getDeposit(req.params.id);
+      if (!deposit) {
+        return res.status(404).json({ message: "Deposit not found" });
+      }
+      res.json(deposit);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch deposit" });
+    }
+  });
+
+  app.get("/api/members/:id/deposits", async (req, res) => {
+    try {
+      const deposits = await storage.getDepositsByMember(req.params.id);
+      res.json(deposits);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch member deposits" });
+    }
+  });
+
+  app.post("/api/deposits", async (req, res) => {
+    try {
+      console.log("Creating deposit with data:", req.body);
+      
+      // Find member corresponding to recordedBy if it's a user ID
+      let recordedByMemberId = req.body.recordedBy;
+      
+      if (req.body.recordedBy && typeof req.body.recordedBy === 'string') {
+        // Look up the user by ID
+        const recorderUser = await storage.getUserById(req.body.recordedBy);
+        console.log("Found recorder user:", recorderUser);
+        
+        if (recorderUser) {
+          // Find member with matching email
+          const members = await storage.getMembers();
+          const recorderMember = members.find(m => m.email === recorderUser.email);
+          console.log("Found matching member:", recorderMember);
+          
+          if (recorderMember) {
+            recordedByMemberId = recorderMember.id;
+          } else {
+            console.error("Member not found for user email:", recorderUser.email);
+            return res.status(400).json({ message: "Recorder member record not found" });
+          }
+        } else {
+          console.error("User not found for ID:", req.body.recordedBy);
+          return res.status(400).json({ message: "User not found" });
+        }
+      }
+      
+      const validatedData = insertDepositSchema.parse({
+        ...req.body,
+        recordedBy: recordedByMemberId
+      });
+      
+      console.log("Validated deposit data:", validatedData);
+      const deposit = await storage.createDeposit(validatedData);
+      
+      res.status(201).json(deposit);
+    } catch (error) {
+      console.error("Error creating deposit:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create deposit", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.post("/api/deposits/:id/approve", async (req, res) => {
+    try {
+      const { approverId } = req.body;
+      if (!approverId) {
+        return res.status(400).json({ message: "Approver ID is required" });
+      }
+      
+      // Find the member corresponding to the user ID
+      console.log("Approve Deposit: Looking up approver user by ID:", approverId);
+      const approverUser = await storage.getUserById(approverId);
+      console.log("Approve Deposit: Found approver user:", approverUser);
+      if (!approverUser) {
+        console.error("Approve Deposit: Approver user not found for ID:", approverId);
+        return res.status(400).json({ message: "Approver user not found" });
+      }
+      
+      // Find member with matching email
+      const members = await storage.getMembers();
+      const approverMember = members.find(m => m.email === approverUser.email);
+      console.log("Approve Deposit: Found matching approver member:", approverMember);
+      if (!approverMember) {
+        console.error("Approve Deposit: Approver member record not found for user email:", approverUser.email);
+        return res.status(400).json({ message: "Approver member record not found" });
+      }
+      
+      console.log("Approving deposit:", req.params.id, "by user:", approverId, "member:", approverMember.id);
+      const deposit = await storage.approveDeposit(req.params.id, approverMember.id);
+      console.log("Deposit approved:", deposit);
+      
+      // Create deposit transaction when approved
+      await storage.createTransaction({
+        memberId: deposit.memberId,
+        type: "deposit",
+        amount: deposit.amount,
+        description: `Deposit Approved - ${deposit.depositNumber}`,
+        processedBy: approverMember.id,
+      });
+
+      res.json(deposit);
+    } catch (error) {
+      console.error("Error approving deposit:", error);
+      if (error instanceof Error && error.message === "Deposit not found") {
+        return res.status(404).json({ message: "Deposit not found" });
+      }
+      res.status(500).json({ message: "Failed to approve deposit", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.post("/api/deposits/:id/reject", async (req, res) => {
+    try {
+      const { approverId } = req.body;
+      if (!approverId) {
+        return res.status(400).json({ message: "Approver ID is required" });
+      }
+      
+      // Find the member corresponding to the user ID
+      console.log("Reject Deposit: Looking up approver user by ID:", approverId);
+      const approverUser = await storage.getUserById(approverId);
+      console.log("Reject Deposit: Found approver user:", approverUser);
+      if (!approverUser) {
+        console.error("Reject Deposit: Approver user not found for ID:", approverId);
+        return res.status(400).json({ message: "Approver user not found" });
+      }
+      
+      // Find member with matching email
+      const members = await storage.getMembers();
+      const approverMember = members.find(m => m.email === approverUser.email);
+      console.log("Reject Deposit: Found matching approver member:", approverMember);
+      if (!approverMember) {
+        console.error("Reject Deposit: Approver member record not found for user email:", approverUser.email);
+        return res.status(400).json({ message: "Approver member record not found" });
+      }
+      
+      console.log("Rejecting deposit:", req.params.id, "by user:", approverId, "member:", approverMember.id);
+      const deposit = await storage.rejectDeposit(req.params.id, approverMember.id);
+      console.log("Deposit rejected:", deposit);
+
+      res.json(deposit);
+    } catch (error) {
+      console.error("Error rejecting deposit:", error);
+      if (error instanceof Error && error.message === "Deposit not found") {
+        return res.status(404).json({ message: "Deposit not found" });
+      }
+      res.status(500).json({ message: "Failed to reject deposit", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
