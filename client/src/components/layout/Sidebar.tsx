@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
@@ -94,25 +93,17 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Role Selector */}
-      <div className="mt-6 px-4" data-testid="role-selector">
-        <div className="mb-2">
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Current Role</span>
+      {/* User Role Display */}
+      {user && (
+        <div className="mt-6 px-4" data-testid="role-display">
+          <div className="mb-2">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Current Role</span>
+          </div>
+          <div className="mt-2 flex justify-center">
+            {getRoleBadge(user.role)}
+          </div>
         </div>
-        <Select value={currentRole} onValueChange={(value) => setCurrentRole(value as keyof typeof roleNavigation)}>
-          <SelectTrigger className="w-full" data-testid="select-role">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="member">Member Access</SelectItem>
-            <SelectItem value="manager">Manager Access</SelectItem>
-            <SelectItem value="admin">Admin Access</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="mt-2 flex justify-center">
-          {getRoleBadge(currentRole)}
-        </div>
-      </div>
+      )}
 
       {/* Navigation */}
       <div className="mt-6 flex-1 flex flex-col">
