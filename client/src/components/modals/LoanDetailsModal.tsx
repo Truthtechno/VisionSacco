@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, DollarSign, User, FileText, Clock } from "lucide-react";
+import { Calendar, DollarSign, User, FileText, Clock, Calculator } from "lucide-react";
 import { format } from "date-fns";
 
 interface LoanDetailsModalProps {
@@ -44,7 +44,7 @@ export default function LoanDetailsModal({ isOpen, onClose, loan, member }: Loan
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto dialog-content mobile-responsive">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Loan Details - {loan.loanNumber}</span>

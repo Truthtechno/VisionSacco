@@ -323,7 +323,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Approver ID is required" });
       }
       
+      console.log("Approving loan:", req.params.id, "by approver:", approverId);
       const loan = await storage.approveLoan(req.params.id, approverId);
+      console.log("Loan approved:", loan);
       
       // Create disbursement transaction if approved
       await storage.createTransaction({
@@ -337,10 +339,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(loan);
     } catch (error) {
+      console.error("Error approving loan:", error);
       if (error instanceof Error && error.message === "Loan not found") {
         return res.status(404).json({ message: "Loan not found" });
       }
-      res.status(500).json({ message: "Failed to approve loan" });
+      res.status(500).json({ message: "Failed to approve loan", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 

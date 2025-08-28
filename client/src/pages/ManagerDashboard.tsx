@@ -249,13 +249,13 @@ export default function ManagerDashboard() {
                                 Review
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl" data-testid="dialog-loan-review">
+                            <DialogContent className="max-w-2xl dialog-content mobile-responsive" data-testid="dialog-loan-review">
                               <DialogHeader>
                                 <DialogTitle>Loan Application Review</DialogTitle>
                               </DialogHeader>
                               {selectedLoan && (
                                 <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                       <label className="text-sm font-medium text-gray-700">Loan Number</label>
                                       <p className="mt-1" data-testid="text-review-loan-number">{selectedLoan.loanNumber}</p>

@@ -142,7 +142,7 @@ export default function Loans() {
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold leading-7 text-gray-900 sm:text-2xl lg:text-3xl sm:truncate" data-testid="loans-title">
+            <h2 className="text-xl font-bold leading-7 text-gray-900 sm:text-2xl lg:text-3xl sm:truncate mobile-responsive" data-testid="loans-title">
               Loans Management
             </h2>
             <p className="mt-1 text-sm sm:text-base text-gray-500">

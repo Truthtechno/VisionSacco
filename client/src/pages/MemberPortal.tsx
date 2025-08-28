@@ -185,7 +185,7 @@ export default function MemberPortal() {
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900" data-testid="text-portal-title">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mobile-responsive" data-testid="text-portal-title">
             Welcome, {memberRecord.firstName}
           </h1>
           <p className="text-gray-600">
