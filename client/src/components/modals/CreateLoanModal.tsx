@@ -40,17 +40,14 @@ export default function CreateLoanModal({ isOpen, onClose, preselectedMemberId }
     },
   });
 
-  const { data: members } = useQuery({
+  const { data: members = [] } = useQuery({
     queryKey: ["/api/members"],
     enabled: isOpen,
   });
 
   const createLoanMutation = useMutation({
     mutationFn: (data: LoanFormData) =>
-      apiRequest("/api/loans", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      apiRequest("POST", "/api/loans", data),
     onSuccess: () => {
       toast({
         title: "Loan application created successfully",
@@ -62,10 +59,11 @@ export default function CreateLoanModal({ isOpen, onClose, preselectedMemberId }
       reset();
     },
     onError: (error: any) => {
+      console.error("Loan creation error:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to create loan application. Please try again.",
+        description: error?.response?.data?.message || error.message || "Failed to create loan application. Please try again.",
       });
     },
   });
@@ -107,7 +105,7 @@ export default function CreateLoanModal({ isOpen, onClose, preselectedMemberId }
                 <SelectValue placeholder="Select a member" />
               </SelectTrigger>
               <SelectContent>
-                {members?.map((member: any) => (
+                {members.map((member: any) => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.firstName} {member.lastName} ({member.memberNumber})
                   </SelectItem>
