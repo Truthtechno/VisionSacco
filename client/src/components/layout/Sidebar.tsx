@@ -47,11 +47,15 @@ export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
-  // Use user's actual role, no default fallback to prevent incorrect navigation
-  const currentRole = user?.role as keyof typeof roleNavigation;
+  // Use user's actual role with proper typing
+  const currentRole = user?.role as keyof typeof roleNavigation | undefined;
   
-  // If no user or invalid role, show empty navigation
-  if (!user || !currentRole || !(currentRole in roleNavigation)) {
+  // Show loading state if user is still loading, but return null if no valid user/role
+  if (!user) {
+    return null;
+  }
+  
+  if (!currentRole || !(currentRole in roleNavigation)) {
     return null;
   }
 

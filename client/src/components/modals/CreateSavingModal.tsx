@@ -47,10 +47,7 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
   // Get current user for recording purposes
   const { data: currentUser } = useQuery({
     queryKey: ["/api/auth/me"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/auth/me");
-      return response.json();
-    },
+    enabled: isOpen,
   });
 
   const createSavingMutation = useMutation({
@@ -82,10 +79,38 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
     console.log("Form submitted with data:", data);
     console.log("Current user:", currentUser);
     
+    // Validate required fields
+    if (!data.memberId) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please select a member.",
+      });
+      return;
+    }
+    
+    if (!data.amount || Number(data.amount) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please enter a valid amount.",
+      });
+      return;
+    }
+    
+    if (!data.depositMethod) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please select a payment method.",
+      });
+      return;
+    }
+    
     if (!currentUser?.data?.id) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Authentication Error",
         description: "User session not found. Please log in again.",
       });
       return;
@@ -95,9 +120,13 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
     // Generate saving number automatically
     const depositNumber = `S${String(Date.now()).slice(-6)}`;
     const savingData = {
-      ...data,
+      memberId: data.memberId,
+      amount: String(data.amount),
+      depositMethod: data.depositMethod,
+      status: "pending" as const,
+      notes: data.notes || "",
       depositNumber,
-      recordedBy: currentUser.data.id, // Use current user ID
+      recordedBy: currentUser.data.id,
     };
     
     console.log("Submitting saving data:", savingData);

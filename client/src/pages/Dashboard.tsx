@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { 
   Users, 
   PiggyBank, 
@@ -17,15 +18,18 @@ import {
 } from "lucide-react";
 import StatCard from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import FinancialChart from "@/components/charts/FinancialChart";
 import NewTransactionModal from "@/components/modals/NewTransactionModal";
 import { exportDashboardReport } from "@/components/export/ExportUtils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { type DashboardStats, type TransactionWithDetails } from "@shared/schema";
 
 export default function Dashboard() {
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
@@ -160,6 +164,78 @@ export default function Dashboard() {
             testId="stat-monthly-revenue"
           />
         </div>
+
+        {/* Quick Actions for Admin/Manager */}
+        {user && (user.role === 'admin' || user.role === 'manager') && (
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Link href="/savings">
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow duration-200 border-emerald-200 hover:border-emerald-400" data-testid="card-savings-shortcut">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-emerald-700 text-sm font-medium">Savings Management</CardTitle>
+                      <PiggyBank className="h-5 w-5 text-emerald-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs">
+                      Record and manage member savings, approvals, and balances
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+              
+              <Link href="/members">
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow duration-200 border-blue-200 hover:border-blue-400" data-testid="card-members-shortcut">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-blue-700 text-sm font-medium">Member Management</CardTitle>
+                      <Users className="h-5 w-5 text-blue-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs">
+                      Manage member accounts, status, and information
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+              
+              <Link href="/loans">
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow duration-200 border-yellow-200 hover:border-yellow-400" data-testid="card-loans-shortcut">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-yellow-700 text-sm font-medium">Loan Management</CardTitle>
+                      <Banknote className="h-5 w-5 text-yellow-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs">
+                      Process loan applications and track repayments
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+              
+              <Link href="/reports">
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow duration-200 border-purple-200 hover:border-purple-400" data-testid="card-reports-shortcut">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-purple-700 text-sm font-medium">Financial Reports</CardTitle>
+                      <FileText className="h-5 w-5 text-purple-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs">
+                      Generate and export financial reports
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Charts and Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
