@@ -44,11 +44,8 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
     enabled: isOpen,
   });
 
-  // Get current user for recording purposes
-  const { data: currentUser } = useQuery({
-    queryKey: ["/api/auth/me"],
-    enabled: isOpen,
-  });
+  // Get current user for recording purposes using auth hook
+  const { user: currentUser } = useAuth();
 
   const createSavingMutation = useMutation({
     mutationFn: async (data: SavingFormData) => {
@@ -107,7 +104,7 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
       return;
     }
     
-    if (!currentUser?.data?.id) {
+    if (!currentUser?.id) {
       toast({
         variant: "destructive",
         title: "Authentication Error",
@@ -126,7 +123,7 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
       status: "pending" as const,
       notes: data.notes || "",
       depositNumber,
-      recordedBy: currentUser.data.id,
+      recordedBy: currentUser.id,
     };
     
     console.log("Submitting saving data:", savingData);
