@@ -46,14 +46,9 @@ const roleNavigation = {
 export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
-  const [currentRole, setCurrentRole] = useState<keyof typeof roleNavigation>("admin");
 
-  // Update currentRole based on authenticated user
-  useEffect(() => {
-    if (user?.role && user.role in roleNavigation) {
-      setCurrentRole(user.role as keyof typeof roleNavigation);
-    }
-  }, [user]);
+  // Use user's actual role or default to admin
+  const currentRole = (user?.role && user.role in roleNavigation) ? user.role as keyof typeof roleNavigation : "admin";
 
   const isActive = (href: string) => {
     if (href === "/") {

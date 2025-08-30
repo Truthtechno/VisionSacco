@@ -54,8 +54,10 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
   });
 
   const createSavingMutation = useMutation({
-    mutationFn: (data: SavingFormData) =>
-      apiRequest("POST", "/api/deposits", data),
+    mutationFn: async (data: SavingFormData) => {
+      const response = await apiRequest("POST", "/api/deposits", data);
+      return response.json();
+    },
     onSuccess: () => {
       toast({
         title: "Saving recorded successfully",
@@ -71,20 +73,34 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
       toast({
         variant: "destructive",
         title: "Error",
-        description: error?.response?.data?.message || error.message || "Failed to record saving. Please try again.",
+        description: error?.message || "Failed to record saving. Please try again.",
       });
     },
   });
 
   const onSubmit = (data: SavingFormData) => {
+    console.log("Form submitted with data:", data);
+    console.log("Current user:", currentUser);
+    
+    if (!currentUser?.data?.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "User session not found. Please log in again.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     // Generate saving number automatically
     const depositNumber = `S${String(Date.now()).slice(-6)}`;
     const savingData = {
       ...data,
       depositNumber,
-      recordedBy: currentUser?.data?.id, // Use current user ID
+      recordedBy: currentUser.data.id, // Use current user ID
     };
+    
+    console.log("Submitting saving data:", savingData);
     createSavingMutation.mutate(savingData, {
       onSettled: () => setIsSubmitting(false),
     });
