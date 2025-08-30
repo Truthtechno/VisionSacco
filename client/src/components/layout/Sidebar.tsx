@@ -47,8 +47,13 @@ export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
-  // Use user's actual role or default to admin
-  const currentRole = (user?.role && user.role in roleNavigation) ? user.role as keyof typeof roleNavigation : "admin";
+  // Use user's actual role, no default fallback to prevent incorrect navigation
+  const currentRole = user?.role as keyof typeof roleNavigation;
+  
+  // If no user or invalid role, show empty navigation
+  if (!user || !currentRole || !(currentRole in roleNavigation)) {
+    return null;
+  }
 
   const isActive = (href: string) => {
     if (href === "/") {

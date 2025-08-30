@@ -121,7 +121,7 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
           <div className="space-y-2">
             <Label htmlFor="memberId">Member</Label>
             <Select 
-              onValueChange={(value) => setValue("memberId", value)}
+              onValueChange={(value) => setValue("memberId", value, { shouldValidate: true })}
               defaultValue={preselectedMemberId}
             >
               <SelectTrigger data-testid="select-member">
@@ -135,6 +135,7 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
                 ))}
               </SelectContent>
             </Select>
+            <input type="hidden" {...register("memberId", { required: "Please select a member" })} />
             {errors.memberId && (
               <p className="text-sm text-red-600">{errors.memberId.message}</p>
             )}
@@ -158,7 +159,7 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
 
           <div className="space-y-2">
             <Label htmlFor="depositMethod">Payment Method</Label>
-            <Select onValueChange={(value) => setValue("depositMethod", value)}>
+            <Select onValueChange={(value) => setValue("depositMethod", value, { shouldValidate: true })}>
               <SelectTrigger data-testid="select-payment-method">
                 <SelectValue placeholder="Select payment method" />
               </SelectTrigger>
@@ -168,6 +169,7 @@ export default function CreateSavingModal({ isOpen, onClose, preselectedMemberId
                 <SelectItem value="mobile_money">Mobile Money</SelectItem>
               </SelectContent>
             </Select>
+            <input type="hidden" {...register("depositMethod", { required: "Please select a payment method" })} />
             {errors.depositMethod && (
               <p className="text-sm text-red-600">{errors.depositMethod.message}</p>
             )}

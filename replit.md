@@ -8,6 +8,16 @@ The system features a modern web interface built with React and TypeScript, offe
 
 Preferred communication style: Simple, everyday language.
 
+# Recent Changes
+
+## Savings Management System Implementation (August 30, 2025)
+- Completed comprehensive Savings module implementation
+- Fixed sidebar navigation role-based display issues
+- Resolved Record Saving modal form submission problems
+- Navigation now properly shows "Savings" for Admin/Manager roles only
+- Form validation and API integration working correctly
+- All demo accounts functional: admin@sacco.test, manager@sacco.test, member@sacco.test (password123)
+
 # System Architecture
 
 ## Frontend Architecture
